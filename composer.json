@@ -1,0 +1,21 @@
+{
+    "name": "akitanabe/kabuto",
+    "description": "php template engine",
+    "type": "library",
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Akitanabe\\Kabuto\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "akitanabe",
+            "email": "tanabe@determaind.biz"
+        }
+    ],
+    "require": {}
+}
