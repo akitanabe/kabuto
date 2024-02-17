@@ -14,7 +14,7 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class PrettierPHPFixer implements FixerInterface
 {
-    protected string $configPath = __DIR__ . '/prettier.config.mjs';
+    protected string $configPath = __DIR__ . '/../prettier.config.mjs';
 
     /**
      * {@inheritdoc}
