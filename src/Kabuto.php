@@ -37,7 +37,7 @@ class Kabuto
             $r_stream = new ReadableResourceStream($r_fp);
             $w_stream = new WritableResourceStream($w_fp);
 
-            $compilingContents = new CompilingContents('', '');
+            $compilingContents = new CompilingContents(['', '']);
 
             $compilers = [new EchosCompiler()];
 

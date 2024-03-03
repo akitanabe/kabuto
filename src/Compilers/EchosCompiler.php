@@ -49,7 +49,7 @@ class EchosCompiler extends Compiler
             $restContents = '';
         }
 
-        return new CompilingContents($addContents, $restContents);
+        return new CompilingContents([$addContents, $restContents]);
     }
     /**
      * @param string $targetContents

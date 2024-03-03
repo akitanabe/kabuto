@@ -9,8 +9,13 @@ class CompilingContents
     public readonly string $addContents;
     public readonly string $restContents;
 
-    public function __construct(string $addContents, string $restContents)
+    /**
+     * array{string, string} $contents
+     *
+     */
+    public function __construct(array $contents)
     {
+        [$addContents, $restContents] = $contents;
         $this->addContents = $addContents;
         $this->restContents = $restContents;
     }
