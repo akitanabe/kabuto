@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto\Compilers;
 
-use Kabuto\CompiledContents;
+use Kabuto\CompilingContents;
 use Kabuto\Compilers\Compiler;
 
 class EchosCompiler extends Compiler
@@ -21,7 +21,7 @@ class EchosCompiler extends Compiler
         'function Kabuto\Functions\Echos\s',
     ];
 
-    public function compile(string $targetContents): CompiledContents
+    public function compile(string $targetContents): CompilingContents
     {
         $tags = array_map(
             function (array $tags): array {
@@ -49,7 +49,7 @@ class EchosCompiler extends Compiler
             $restContents = '';
         }
 
-        return new CompiledContents($addContents, $restContents);
+        return new CompilingContents($addContents, $restContents);
     }
     /**
      * @param string $targetContents

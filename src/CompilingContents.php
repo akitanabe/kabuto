@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
-class CompiledContents
+class CompilingContents
 {
     public readonly string $addContents;
     public readonly string $restContents;

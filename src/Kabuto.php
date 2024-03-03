@@ -9,6 +9,7 @@ use Amp\Future;
 use Amp\ByteStream\ReadableResourceStream;
 use Amp\ByteStream\WritableResourceStream;
 use Kabuto\Compilers\Compiler;
+use Kabuto\CompilingContents;
 use Kabuto\Compilers\EchosCompiler;
 use Exception;
 
@@ -36,7 +37,7 @@ class Kabuto
             $r_stream = new ReadableResourceStream($r_fp);
             $w_stream = new WritableResourceStream($w_fp);
 
-            $compiledContents = new CompiledContents('', '');
+            $compilingContents = new CompilingContents('', '');
 
             $compilers = [new EchosCompiler()];
 
@@ -45,17 +46,17 @@ class Kabuto
             $w_stream->write($declaration);
 
             while ($chunk = $r_stream->read()) {
-                $targetContents = $compiledContents->restContents . $chunk;
+                $targetContents = $compilingContents->restContents . $chunk;
 
                 foreach ($compilers as $compiler) {
-                    $compiledContents = $compiler->compile($targetContents);
+                    $compilingContents = $compiler->compile($targetContents);
                 }
 
-                $w_stream->write($compiledContents->addContents);
+                $w_stream->write($compilingContents->addContents);
             }
 
-            if ($compiledContents->restContents !== '') {
-                $w_stream->write($compiledContents->restContents);
+            if ($compilingContents->restContents !== '') {
+                $w_stream->write($compilingContents->restContents);
             }
         });
     }
