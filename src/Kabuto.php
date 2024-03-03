@@ -1,5 +1,4 @@
-<?php
-
+Future<?php
 declare(strict_types=1);
 
 namespace Kabuto;
@@ -22,9 +21,7 @@ use function Amp\async;
 
 class Kabuto
 {
-    protected Future $future;
-
-    protected $functions = [];
+    protected Future $compiling;
 
     public function __construct(private string $templateFile)
     {
@@ -32,7 +29,7 @@ class Kabuto
             throw new Exception('Template file not found');
         }
 
-        $this->future = async(function () {
+        $this->compiling = async(function () {
             $r_fp = fopen($this->templateFile, 'r');
             $w_fp = fopen(__DIR__ . '/../compiled.php', 'w');
 
@@ -43,9 +40,9 @@ class Kabuto
 
             $compilers = [new EchosCompiler()];
 
-            $declareation = $this->getPhpDeclaration($compilers);
+            $declaration = $this->getPhpDeclaration($compilers);
 
-            $w_stream->write($declareation);
+            $w_stream->write($declaration);
 
             while ($chunk = $r_stream->read()) {
                 $targetContents = $compiledContents->restContents . $chunk;
@@ -99,6 +96,6 @@ class Kabuto
 
     public function render()
     {
-        $this->future->await();
+        $this->compiling->await();
     }
 }
