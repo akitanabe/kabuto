@@ -14,6 +14,10 @@
       "email": "tanabe@determaind.biz"
     }
   ],
+  "require": {
+    "amphp/amp": "^3.0",
+    "amphp/byte-stream": "^2.1"
+  },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3.49",
     "phpunit/phpunit": "^10.5"
