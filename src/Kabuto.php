@@ -11,7 +11,7 @@ use Amp\ByteStream\ReadableResourceStream;
 use Amp\ByteStream\WritableResourceStream;
 use Kabuto\Compilers\Compiler;
 use Kabuto\CompilingContents;
-use Kabuto\Compilers\EchosCompiler;
+use Kabuto\Compilers\EchoCompiler;
 use Exception;
 
 use function Amp\async;
@@ -40,7 +40,7 @@ class Kabuto
 
             $compilingContents = new CompilingContents(['', '']);
 
-            $compilers = [new EchosCompiler()];
+            $compilers = [new EchoCompiler()];
 
             $declaration = $this->getPhpDeclaration($compilers);
 

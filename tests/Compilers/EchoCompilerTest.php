@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
-use Kabuto\Compilers\EchosCompiler;
+use Kabuto\Compilers\EchoCompiler;
 
-class EchosCompilerTest extends TestCase
+class EchoCompilerTest extends TestCase
 {
-    private EchosCompiler $compiler;
+    private EchoCompiler $compiler;
 
     public function setUp(): void
     {
-        $this->compiler = new EchosCompiler();
+        $this->compiler = new EchoCompiler();
     }
 
     public function testRegularTagsCompile(): void
@@ -19,7 +19,7 @@ class EchosCompilerTest extends TestCase
         $targetContents = 'Hello, {{ $name }}';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        [$_, $__, $format] = $this->compiler::REGULAR_TAGS;
+        $format = $this->compiler->REGULAR_TAGS->format;
 
         $var = sprintf($format, '$name');
         $this->assertEquals(
@@ -33,7 +33,7 @@ class EchosCompilerTest extends TestCase
         $targetContents = 'Hello, {{{ $name }}}';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        [$_, $__, $format] = $this->compiler::ESCAPED_TAGS;
+        $format = $this->compiler->ESCAPED_TAGS->format;
 
         $var = sprintf($format, '$name');
         $this->assertEquals(
@@ -47,7 +47,7 @@ class EchosCompilerTest extends TestCase
         $targetContents = 'Hello, {!! $name !!}';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        [$_, $__, $format] = $this->compiler::RAW_TAGS;
+        $format = $this->compiler->RAW_TAGS->format;
 
         $var = sprintf($format, '$name');
         $this->assertEquals(
@@ -71,7 +71,7 @@ class EchosCompilerTest extends TestCase
             $compilingContents->restContents . ' }}',
         );
 
-        [$_, $__, $format] = $this->compiler::REGULAR_TAGS;
+        $format = $this->compiler->REGULAR_TAGS->format;
         $var = sprintf($format, '$name');
         $this->assertEquals(
             ["<?php echo {$var}; ?>", ''],
@@ -94,7 +94,7 @@ class EchosCompilerTest extends TestCase
             $compilingContents->restContents . '{ $name}}',
         );
 
-        [$_, $__, $format] = $this->compiler::REGULAR_TAGS;
+        $format = $this->compiler->REGULAR_TAGS->format;
         $var = sprintf($format, '$name');
         $this->assertEquals(
             ["<?php echo {$var}; ?>", ''],
@@ -117,7 +117,7 @@ class EchosCompilerTest extends TestCase
             $compilingContents->restContents . '! $name !!}',
         );
 
-        [$_, $__, $format] = $this->compiler::RAW_TAGS;
+        $format = $this->compiler->RAW_TAGS->format;
         $var = sprintf($format, '$name');
         $this->assertEquals(
             ["<?php echo {$var}; ?>", ''],
@@ -140,7 +140,7 @@ class EchosCompilerTest extends TestCase
             $compilingContents->restContents . '{ $name }}}',
         );
 
-        [$_, $__, $format] = $this->compiler::ESCAPED_TAGS;
+        $format = $this->compiler->ESCAPED_TAGS->format;
         $var = sprintf($format, '$name');
         $this->assertEquals(
             ["<?php echo {$var}; ?>", ''],
