@@ -4,70 +4,95 @@ declare(strict_types=1);
 
 namespace Kabuto\Compilers;
 
+use Closure;
 use Kabuto\CompilingContents;
 use Kabuto\Compilers\Compiler;
 
 class EchosCompiler extends Compiler
 {
-    protected $rawTags = ['{!!', '!!}', 'e(%s)'];
+    public const RAW_TAGS = ['{!!', '!!}', '%s'];
 
-    protected $contentTags = ['{{', '}}', 'e(h(%s))'];
+    public const REGULAR_TAGS = ['{{', '}}', 'h(%s)'];
 
-    protected $escapedTags = ['{{{', '}}}', 'e(s(%s))'];
+    public const ESCAPED_TAGS = ['{{{', '}}}', 's(%s)'];
 
     public array $uses = [
-        'function Kabuto\Functions\Echos\e',
         'function Kabuto\Functions\Echos\h',
         'function Kabuto\Functions\Echos\s',
     ];
 
-    public function compile(string $targetContents): CompilingContents
-    {
-        $tags = array_map(
-            function (array $tags): array {
-                [$openTag, $closeTag, $echo] = $tags;
-
-                return [preg_quote($openTag), preg_quote($closeTag), $echo];
-            },
-            [$this->rawTags, $this->contentTags, $this->escapedTags],
-        );
-
+    public function compile(
+        string $targetContents,
+        ?array $tagsSet = null,
+    ): CompilingContents {
         $compileEcho = $this->compileEcho(...);
         $searchEchoOpenTag = $this->searchEchoOpenTag(...);
 
-        // compile echos
-        $targetContents = array_reduce($tags, $compileEcho, $targetContents);
+        $tagsSet ??= [self::RAW_TAGS, self::ESCAPED_TAGS, self::REGULAR_TAGS];
 
-        [$addContents, $restContents] = array_reduce(
-            $tags,
+        // compile echos
+        $targetContents = array_reduce($tagsSet, $compileEcho, $targetContents);
+
+        // search echo open tag
+        [$addContents, $restContents, $openTags] = array_reduce(
+            $tagsSet,
             $searchEchoOpenTag,
-            ['', $targetContents],
+            [$targetContents, '', null],
         );
 
-        if ($addContents === '') {
-            $addContents = $targetContents;
-            $restContents = '';
+        $openTagsSet = isset($openTags) ? [$openTags] : null;
+        if (isset($openTags) === false && $addContents !== '') {
+            $lastChar = $addContents[-1];
+            $last2Char = ($addContents[-2] ?? '') . $lastChar;
+
+            if ($lastChar === '{') {
+                $openTagsSet = [
+                    self::RAW_TAGS,
+                    self::ESCAPED_TAGS,
+                    self::REGULAR_TAGS,
+                ];
+
+                $restContents = $lastChar;
+                $addContents = substr($addContents, 0, -1);
+            } elseif ($last2Char === '{!') {
+                $openTagsSet = [self::RAW_TAGS];
+                $restContents = $last2Char;
+                $addContents = substr($addContents, 0, -2);
+            }
+        } elseif (
+            isset($openTags) &&
+            $openTags[0] === self::REGULAR_TAGS[0] &&
+            $restContents === self::REGULAR_TAGS[0]
+        ) {
+            $openTagsSet = [self::ESCAPED_TAGS, self::REGULAR_TAGS];
         }
 
-        return new CompilingContents([$addContents, $restContents]);
+        $contents = [$addContents, $restContents];
+        $todo = $this->getTodo($openTagsSet);
+
+        return new CompilingContents($contents, $todo);
     }
     /**
      * @param string $targetContents
-     * @param array{string, string, string} $tags
+     * @param array{string, string, string} $tagSet
      *
      * @return string
      *
      */
     protected function compileEcho(string $targetContents, array $tags): string
     {
-        [$openTag, $closeTag, $echo] = $tags;
+        [$openTag, $closeTag, $format] = $tags;
 
-        $regexp = sprintf('/%s(.+?)%s/s', $openTag, $closeTag);
+        $regexp = sprintf(
+            '/%s\s*(.+?)\s*%s/s',
+            preg_quote($openTag),
+            preg_quote($closeTag),
+        );
 
-        $callback = function (array $matches) use ($echo): string {
-            [$_, $var] = $matches;
-
-            return sprintf("<?php {$echo}; ?>", "$" . ltrim(trim($var), "$"));
+        $callback = function (array $matches) use ($format): string {
+            [$_, $varName] = $matches;
+            $var = sprintf($format, "$" . ltrim($varName, "$"));
+            return "<?php echo {$var}; ?>";
         };
 
         return preg_replace_callback($regexp, $callback, $targetContents);
@@ -75,14 +100,17 @@ class EchosCompiler extends Compiler
 
     /**
      * @param array{string, string} $contents
+     * @param array{string, string, string} $tag
+     *
+     * @return array{string, string, ?array}
      *
      */
     protected function searchEchoOpenTag(array $contents, array $tags): array
     {
-        [$addContents, $targetContents] = $contents;
+        [$targetContents, $restContents] = $contents;
 
-        if ($addContents !== '') {
-            return [...$contents];
+        if ($restContents !== '') {
+            return $contents;
         }
 
         [$openTag] = $tags;
@@ -92,11 +120,23 @@ class EchosCompiler extends Compiler
         if ($pos !== false) {
             $addContents = substr($targetContents, 0, $pos);
             $restContents = substr($targetContents, $pos);
+            $openTags = $tags;
         } else {
-            $addContents = '';
-            $restContents = $targetContents;
+            $addContents = $targetContents;
+            $openTags = null;
         }
 
-        return [$addContents, $restContents];
+        return [$addContents, $restContents, $openTags];
+    }
+
+    protected function getTodo(?array $openTagsSet): ?Closure
+    {
+        if ($openTagsSet === null) {
+            return null;
+        }
+
+        return fn(
+            string $tagetContents,
+        ) => $this->compile($tagetContents, $openTagsSet);
     }
 }

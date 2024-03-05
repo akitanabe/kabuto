@@ -1,4 +1,5 @@
-Future<?php
+<?php
+
 declare(strict_types=1);
 
 namespace Kabuto;
@@ -47,6 +48,18 @@ class Kabuto
 
             while ($chunk = $r_stream->read()) {
                 $targetContents = $compilingContents->restContents . $chunk;
+
+                if (isset($compilingContents->todo)) {
+                    $compilingContents = $compilingContents->todo(
+                        $targetContents,
+                    );
+
+                    if (isset($compilingContents->todo)) {
+                        continue;
+                    }
+
+                    $targetContents = $compilingContents->addContents;
+                }
 
                 foreach ($compilers as $compiler) {
                     $compilingContents = $compiler->compile($targetContents);
