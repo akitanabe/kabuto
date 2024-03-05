@@ -24,6 +24,6 @@
   },
   "scripts": {
     "fix": "php-cs-fixer fix -vvv",
-    "test": "phpunit"
+    "test": "phpunit tests"
   }
 }
