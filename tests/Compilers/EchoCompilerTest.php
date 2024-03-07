@@ -4,110 +4,173 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 use Kabuto\Compilers\EchoCompiler;
+use Kabuto\Compilers\EchoTags;
 
 class EchoCompilerTest extends TestCase
 {
     private EchoCompiler $compiler;
+
+    private $echoFormat = '<?php echo %s; ?>';
 
     public function setUp(): void
     {
         $this->compiler = new EchoCompiler();
     }
 
-    public function testRegularTagsCompile(): void
-    {
-        $targetContents = 'Hello, {{ $name }}';
+    protected function assertCompileContents(
+        string $targetContents,
+        string $format,
+        string $varName = '$name',
+    ): void {
         $compilingContents = $this->compiler->compile($targetContents);
 
-        $format = $this->compiler->REGULAR_TAGS->format;
+        $var = sprintf($format, $varName);
 
-        $var = sprintf($format, '$name');
         $this->assertEquals(
-            ["Hello, <?php echo {$var}; ?>", ''],
+            [sprintf($this->echoFormat, $var), ''],
             [$compilingContents->addContents, $compilingContents->restContents],
         );
+    }
+
+    public function testRegularTagsCompile(): void
+    {
+        $format = $this->compiler->REGULAR_TAGS->format;
+        foreach (
+            [
+                '{{ $name }}',
+                '{{$name}}',
+                '{{
+                    $name
+                 }}',
+            ]
+            as $targetContents
+        ) {
+            $this->assertCompileContents($targetContents, $format);
+        }
     }
 
     public function testEscapedTagsCompile(): void
     {
-        $targetContents = 'Hello, {{{ $name }}}';
-        $compilingContents = $this->compiler->compile($targetContents);
-
         $format = $this->compiler->ESCAPED_TAGS->format;
-
-        $var = sprintf($format, '$name');
-        $this->assertEquals(
-            ["Hello, <?php echo {$var}; ?>", ''],
-            [$compilingContents->addContents, $compilingContents->restContents],
-        );
+        foreach (
+            [
+                '{{{ $name }}}',
+                '{{{$name}}}',
+                '{{{
+                    $name
+                 }}}',
+            ]
+            as $targetContents
+        ) {
+            $this->assertCompileContents($targetContents, $format);
+        }
     }
 
     public function testRawTagsCompile(): void
     {
-        $targetContents = 'Hello, {!! $name !!}';
-        $compilingContents = $this->compiler->compile($targetContents);
-
         $format = $this->compiler->RAW_TAGS->format;
-
-        $var = sprintf($format, '$name');
-        $this->assertEquals(
-            ["Hello, <?php echo {$var}; ?>", ''],
-            [$compilingContents->addContents, $compilingContents->restContents],
-        );
+        foreach (
+            [
+                '{!! $name !!}',
+                '{!!$name!!}',
+                '{!!
+                    $name
+                 !!}',
+            ]
+            as $targetContents
+        ) {
+            $this->assertCompileContents($targetContents, $format);
+        }
     }
 
     public function testCompileWithTodo(): void
     {
-        $targetContents = 'Hello, {{ $name';
-        $compilingContents = $this->compiler->compile($targetContents);
+        foreach (
+            [
+                $this->compiler->RAW_TAGS,
+                $this->compiler->ESCAPED_TAGS,
+                $this->compiler->REGULAR_TAGS,
+            ]
+            as $tags
+        ) {
+            $targetContents = $tags->openTag . ' $name';
+            $compilingContents = $this->compiler->compile($targetContents);
 
-        $this->assertEquals('Hello, ', $compilingContents->addContents);
+            $this->assertEquals('', $compilingContents->addContents);
 
-        $this->assertEquals('{{ $name', $compilingContents->restContents);
+            $this->assertEquals(
+                $targetContents,
+                $compilingContents->restContents,
+            );
 
-        $this->assertNotNull($compilingContents->todo);
+            $this->assertNotNull($compilingContents->todo);
 
-        $compilingContents = $compilingContents->todo(
-            $compilingContents->restContents . ' }}',
-        );
+            $compilingContents = $compilingContents->todo(
+                $compilingContents->restContents . ' ' . $tags->closeTag,
+            );
 
-        $format = $this->compiler->REGULAR_TAGS->format;
-        $var = sprintf($format, '$name');
-        $this->assertEquals(
-            ["<?php echo {$var}; ?>", ''],
-            [$compilingContents->addContents, $compilingContents->restContents],
-        );
+            $format = $tags->format;
+            $var = sprintf($format, '$name');
+            $this->assertEquals(
+                ["<?php echo {$var}; ?>", ''],
+                [
+                    $compilingContents->addContents,
+                    $compilingContents->restContents,
+                ],
+            );
+        }
     }
 
-    public function testCompileWithTodoOneMissing(): void
+    public function testCompileWithTodoLastChar(): void
     {
-        $targetContents = 'Hello, {';
+        $tagsSet = array_map(
+            function (EchoTags $tags) {
+                return [
+                    substr($tags->openTag, 1),
+                    $tags->closeTag,
+                    $tags->format,
+                ];
+            },
+            [
+                $this->compiler->RAW_TAGS,
+                $this->compiler->ESCAPED_TAGS,
+                $this->compiler->REGULAR_TAGS,
+            ],
+        );
+
+        $targetContents = '{';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        $this->assertEquals('Hello, ', $compilingContents->addContents);
-
+        $this->assertEquals('', $compilingContents->addContents);
         $this->assertEquals('{', $compilingContents->restContents);
 
-        $this->assertNotNull($compilingContents->todo);
+        foreach ($tagsSet as $tags) {
+            [$restOpenTag, $closeTag, $format] = $tags;
 
-        $compilingContents = $compilingContents->todo(
-            $compilingContents->restContents . '{ $name}}',
-        );
+            $this->assertNotNull($compilingContents->todo);
 
-        $format = $this->compiler->REGULAR_TAGS->format;
-        $var = sprintf($format, '$name');
-        $this->assertEquals(
-            ["<?php echo {$var}; ?>", ''],
-            [$compilingContents->addContents, $compilingContents->restContents],
-        );
+            $todoCompilingContents = $compilingContents->todo(
+                $compilingContents->restContents .
+                    "{$restOpenTag} \$name {$closeTag}",
+            );
+
+            $var = sprintf($format, '$name');
+            $this->assertEquals(
+                ["<?php echo {$var}; ?>", ''],
+                [
+                    $todoCompilingContents->addContents,
+                    $todoCompilingContents->restContents,
+                ],
+            );
+        }
     }
 
-    public function testCompileWithTodoTwoMissing(): void
+    public function testCompileWithTodoLast2Char(): void
     {
-        $targetContents = 'Hello, {!';
+        $targetContents = '{!';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        $this->assertEquals('Hello, ', $compilingContents->addContents);
+        $this->assertEquals('', $compilingContents->addContents);
 
         $this->assertEquals('{!', $compilingContents->restContents);
 
@@ -125,19 +188,19 @@ class EchoCompilerTest extends TestCase
         );
     }
 
-    public function testCompileWithTodoTwoToThreeMissing(): void
+    public function testCompileWithTodoRegularEchoTagOnly(): void
     {
-        $targetContents = 'Hello, {{';
+        $targetContents = '{{';
         $compilingContents = $this->compiler->compile($targetContents);
 
-        $this->assertEquals('Hello, ', $compilingContents->addContents);
+        $this->assertEquals('', $compilingContents->addContents);
 
         $this->assertEquals('{{', $compilingContents->restContents);
 
         $this->assertNotNull($compilingContents->todo);
 
         $compilingContents = $compilingContents->todo(
-            $compilingContents->restContents . '{ $name }}}',
+            $compilingContents->restContents . '{ $name }}',
         );
 
         $format = $this->compiler->ESCAPED_TAGS->format;
