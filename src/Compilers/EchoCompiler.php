@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kabuto\Compilers;
 
 use Closure;
-use Kabuto\CompilingContents;
+use Kabuto\CompilingTemplate;
 use Kabuto\Compilers\Compiler;
 use Kabuto\Compilers\EchoTags;
 
@@ -30,9 +30,9 @@ final class EchoCompiler extends Compiler
     }
 
     public function compile(
-        string $targetContents,
+        CompilingTemplate $template,
         ?array $tagsSet = null,
-    ): CompilingContents {
+    ): CompilingTemplate {
         $compileEcho = $this->compileEcho(...);
         $searchEchoOpenTag = $this->searchEchoOpenTag(...);
 
@@ -43,14 +43,14 @@ final class EchoCompiler extends Compiler
         ];
 
         // compile echos
-        $targetContents = array_reduce($tagsSet, $compileEcho, $targetContents);
+        $targetTemplate = array_reduce($tagsSet, $compileEcho, $template->next);
 
         // search echo open tag
         /** @var ?EchoTags $openTags */
-        [$addContents, $restContents, $openTags] = array_reduce(
+        [$nextTemplate, $pendingTemplate, $openTags] = array_reduce(
             $tagsSet,
             $searchEchoOpenTag,
-            [$targetContents, '', null],
+            [$targetTemplate, '', null],
         );
 
         $openTagsSet = isset($openTags) ? [$openTags] : null;
@@ -58,37 +58,27 @@ final class EchoCompiler extends Compiler
         if (
             // 開始タグが変わる可能性があるので特定の文字が最終列にあれば各値上書き
             isset($openTagsSet) === false &&
-            $addContents !== '' &&
-            $restContents === ''
+            $nextTemplate !== '' &&
+            $pendingTemplate === ''
         ) {
-            $overides = $this->overrideWithLastChar($addContents);
+            $overrides = $this->overrideWithLastChar($nextTemplate);
 
             if (isset($overides)) {
-                [$addContents, $restContents, $openTagsSet] = $overides;
+                [$nextTemplate, $pendingTemplate, $openTagsSet] = $overrides;
             }
-        } elseif (
-            // 現在の開始タグがREGULAR_TAGSであればESCAPED_TAGSが次の開始タグになる可能性があるのでtodoの置換リストに追加
-            isset($openTags) &&
-            $openTags->openTag === $this->REGULAR_TAGS->openTag &&
-            $restContents === $this->REGULAR_TAGS->openTag
-        ) {
-            $openTagsSet = [$this->ESCAPED_TAGS, $this->REGULAR_TAGS];
         }
 
-        $contents = [$addContents, $restContents];
-        $todo = $this->getTodo($openTagsSet);
-
-        return new CompilingContents($contents, $todo);
+        return new CompilingTemplate($nextTemplate, $pendingTemplate);
     }
     /**
-     * @param string $targetContents
+     * @param string $targetTemplate
      * @param EchoTags $tags
      *
      * @return string
      *
      */
     protected function compileEcho(
-        string $targetContents,
+        string $targetTemplate,
         EchoTags $tags,
     ): string {
         $regexp = sprintf(
@@ -103,7 +93,7 @@ final class EchoCompiler extends Compiler
             return "<?php echo {$var}; ?>";
         };
 
-        return preg_replace_callback($regexp, $callback, $targetContents);
+        return preg_replace_callback($regexp, $callback, $targetTemplate);
     }
 
     /**
@@ -113,59 +103,45 @@ final class EchoCompiler extends Compiler
      * @return array{string, string, ?EchoTags}
      *
      */
-    protected function searchEchoOpenTag(array $contents, EchoTags $tags): array
-    {
-        [$targetContents, $restContents] = $contents;
+    protected function searchEchoOpenTag(
+        array $templates,
+        EchoTags $tags,
+    ): array {
+        [$targetTemplate, $pendingTemplate] = $templates;
 
-        if ($restContents !== '') {
-            return $contents;
+        if ($pendingTemplate !== '') {
+            return [...$templates];
         }
 
-        $pos = strpos($targetContents, $tags->openTag);
+        $pos = strpos($targetTemplate, $tags->openTag);
 
         if ($pos !== false) {
-            $addContents = substr($targetContents, 0, $pos);
-            $restContents = substr($targetContents, $pos);
+            $nextTemplate = substr($targetTemplate, 0, $pos);
+            $pendingTemplate = substr($targetTemplate, $pos);
             $openTags = $tags;
         } else {
-            $addContents = $targetContents;
+            $nextTemplate = $targetTemplate;
             $openTags = null;
         }
 
-        return [$addContents, $restContents, $openTags];
+        return [$nextTemplate, $pendingTemplate, $openTags];
     }
 
     /**
-     * @param ?EchoTags[] $openTagsSet
-     *
-     * @return ?Closure
-     */
-    protected function getTodo(?array $openTagsSet): ?Closure
-    {
-        if ($openTagsSet === null) {
-            return null;
-        }
-
-        return fn(
-            string $tagetContents,
-        ) => $this->compile($tagetContents, $openTagsSet);
-    }
-
-    /**
-     * @param string $addContents
+     * @param string $nextTemplate
      *
      * @return ?array
      *
      */
-    protected function overrideWithLastChar(string $addContents): ?array
+    protected function overrideWithLastChar(string $nextTemplate): ?array
     {
-        $lastChar = $addContents[-1];
-        $last2Char = ($addContents[-2] ?? '') . $lastChar;
+        $lastChar = $nextTemplate[-1];
+        $last2Char = ($nextTemplate[-2] ?? '') . $lastChar;
 
         if ($lastChar === '{') {
             return [
                 // addContentsの最終の文字を削除
-                substr($addContents, 0, -1),
+                substr($nextTemplate, 0, -1),
                 // restContentsに最終の文字を追加
                 $lastChar,
                 // 全ての置換リストを採用
@@ -174,7 +150,7 @@ final class EchoCompiler extends Compiler
         } elseif ($last2Char === '{!') {
             return [
                 // addContentsの最終の2文字を削除
-                substr($addContents, 0, -2),
+                substr($nextTemplate, 0, -2),
                 // restContentsに最終の2文字を追加
                 $last2Char,
                 // 置換リストにRAW_TAGSを採用

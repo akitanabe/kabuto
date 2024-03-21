@@ -10,9 +10,10 @@ use Amp\Future;
 use Amp\ByteStream\ReadableResourceStream;
 use Amp\ByteStream\WritableResourceStream;
 use Kabuto\Compilers\Compiler;
-use Kabuto\CompilingContents;
+use Kabuto\CompilingTemplate;
 use Kabuto\Compilers\EchoCompiler;
 use Exception;
+use Kabuto\Compilers\DirectiveCompiler;
 
 use function Amp\async;
 
@@ -38,7 +39,7 @@ class Kabuto
             $r_stream = new ReadableResourceStream($r_fp);
             $w_stream = new WritableResourceStream($w_fp);
 
-            $compilingContents = new CompilingContents(['', '']);
+            $compilingTemplate = new CompilingTemplate('', '');
 
             $compilers = [new EchoCompiler()];
 
@@ -47,29 +48,20 @@ class Kabuto
             $w_stream->write($declaration);
 
             while ($chunk = $r_stream->read()) {
-                $targetContents = $compilingContents->restContents . $chunk;
-
-                if (isset($compilingContents->todo)) {
-                    $compilingContents = $compilingContents->todo(
-                        $targetContents,
-                    );
-
-                    if (isset($compilingContents->todo)) {
-                        continue;
-                    }
-
-                    $targetContents = $compilingContents->addContents;
-                }
+                $compilingTemplate = new CompilingTemplate(
+                    $compilingTemplate->pending . $chunk,
+                    '',
+                );
 
                 foreach ($compilers as $compiler) {
-                    $compilingContents = $compiler->compile($targetContents);
+                    $compilingTemplate = $compiler->compile($compilingTemplate);
                 }
 
-                $w_stream->write($compilingContents->addContents);
+                $w_stream->write($compilingTemplate->next);
             }
 
-            if ($compilingContents->restContents !== '') {
-                $w_stream->write($compilingContents->restContents);
+            if ($compilingTemplate->pending !== '') {
+                $w_stream->write($compilingTemplate->pending);
             }
         });
     }
