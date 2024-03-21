@@ -41,7 +41,7 @@ class Kabuto
 
             $compilingTemplate = new CompilingTemplate('', '');
 
-            $compilers = [new EchoCompiler()];
+            $compilers = [new EchoCompiler(), new DirectiveCompiler()];
 
             $declaration = $this->getPhpDeclaration($compilers);
 
