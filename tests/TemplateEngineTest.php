@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kabuto\Tests;
 
+use Kabuto\BaseComponent;
 use Kabuto\Compiler\CompiledTemplate;
 use Kabuto\Compiler\TemplateCompiler;
+use Kabuto\Component;
 use Kabuto\ComponentRegistry;
 use Kabuto\ComponentRenderer;
+use Kabuto\Escaper;
+use Kabuto\Provider;
 use Kabuto\RenderContext;
 use Kabuto\TemplateEngine;
 use Kabuto\Tests\Fixtures\TemplateAlertComponent;
@@ -75,6 +79,36 @@ final class TemplateEngineTest extends TestCase
     }
 
     /**
+     * Confirms that provider components extend context for child components.
+     */
+    public function testEngineRendersProviderWithScopedContext(): void
+    {
+        $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
+            'provider' => Provider::class,
+            'cart-summary' => $this->contextReader('cart'),
+        ])));
+
+        self::assertSame('<strong>1200</strong>', $engine->render('<x-provider name="cart" :value="$cart"><x-cart-summary /></x-provider>', [
+            'cart' => 1200,
+        ]));
+    }
+
+    /**
+     * Confirms that store provider syntax maps to a namespaced component name.
+     */
+    public function testEngineRendersStoreProvideComponentName(): void
+    {
+        $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
+            'store:provide' => Provider::class,
+            'cart-summary' => $this->contextReader('cart'),
+        ])));
+
+        self::assertSame('<strong>2400</strong>', $engine->render('<x-store:provide name="cart" :value="$cart"><x-cart-summary /></x-store:provide>', [
+            'cart' => 2400,
+        ]));
+    }
+
+    /**
      * Confirms that the compiler produces an executable PHP renderer closure.
      */
     public function testCompilerProducesPhpRendererClosure(): void
@@ -97,5 +131,28 @@ final class TemplateEngineTest extends TestCase
 
         self::assertInstanceOf(CompiledTemplate::class, $renderer);
         self::assertSame('Hello', $renderer([], new RenderContext(), new ComponentRenderer(new ComponentRegistry())));
+    }
+
+    /**
+     * Creates a component factory that renders one context value.
+     */
+    private function contextReader(string $key): callable
+    {
+        return static fn(): Component => new class($key) extends BaseComponent {
+            /**
+             * Stores the context key read by this test component.
+             */
+            public function __construct(
+                private readonly string $key,
+            ) {}
+
+            /**
+             * Renders the configured context value.
+             */
+            public function render(RenderContext $context): string
+            {
+                return '<strong>' . Escaper::escape($context->get($this->key)) . '</strong>';
+            }
+        };
     }
 }
