@@ -17,6 +17,7 @@ use Kabuto\TemplateEngine;
 use Kabuto\Tests\Fixtures\TemplateAlertComponent;
 use Kabuto\Tests\Fixtures\TemplateLayoutComponent;
 use Kabuto\Tests\Fixtures\TemplateUserCardComponent;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class TemplateEngineTest extends TestCase
@@ -24,7 +25,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that normal HTML and literal text are rendered from a parsed template.
      */
-    public function testEngineRendersHtmlTemplate(): void
+    #[Test]
+    public function engineRendersHtmlTemplate(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry()));
 
@@ -37,7 +39,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that component attributes and the default slot are rendered through the registry.
      */
-    public function testEngineRendersRegisteredComponentWithDefaultSlot(): void
+    #[Test]
+    public function engineRendersRegisteredComponentWithDefaultSlot(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
             'alert' => TemplateAlertComponent::class,
@@ -52,7 +55,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that simple dynamic props are read from render data.
      */
-    public function testEnginePassesDynamicPropsFromData(): void
+    #[Test]
+    public function enginePassesDynamicPropsFromData(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
             'user-card' => TemplateUserCardComponent::class,
@@ -66,7 +70,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that named slots are provided separately from the default slot.
      */
-    public function testEngineRendersNamedSlots(): void
+    #[Test]
+    public function engineRendersNamedSlots(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
             'layout' => TemplateLayoutComponent::class,
@@ -81,7 +86,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that provider components extend context for child components.
      */
-    public function testEngineRendersProviderWithScopedContext(): void
+    #[Test]
+    public function engineRendersProviderWithScopedContext(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
             'provider' => Provider::class,
@@ -96,7 +102,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that store provider syntax maps to a namespaced component name.
      */
-    public function testEngineRendersStoreProvideComponentName(): void
+    #[Test]
+    public function engineRendersStoreProvideComponentName(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
             'store:provide' => Provider::class,
@@ -111,7 +118,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that the compiler produces an executable PHP renderer closure.
      */
-    public function testCompilerProducesPhpRendererClosure(): void
+    #[Test]
+    public function compilerProducesPhpRendererClosure(): void
     {
         $code = new TemplateCompiler()->compile([
             new \Kabuto\Ast\TextNode('Hello'),
@@ -124,7 +132,8 @@ final class TemplateEngineTest extends TestCase
     /**
      * Confirms that templates compile to reusable renderers without eval.
      */
-    public function testEngineCompilesTemplateToRenderer(): void
+    #[Test]
+    public function engineCompilesTemplateToRenderer(): void
     {
         $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry()));
         $renderer = $engine->compile('Hello');

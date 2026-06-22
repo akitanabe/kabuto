@@ -9,6 +9,7 @@ use Kabuto\Escaper;
 use Kabuto\Provider;
 use Kabuto\RenderContext;
 use Kabuto\Slot;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ProviderTest extends TestCase
@@ -16,7 +17,8 @@ final class ProviderTest extends TestCase
     /**
      * Confirms that a provider renders its default slot with an extended context.
      */
-    public function testProviderRendersDefaultSlotWithExtendedContext(): void
+    #[Test]
+    public function providerRendersDefaultSlotWithExtendedContext(): void
     {
         $context = new RenderContext(['theme' => 'light']);
         $provider = new Provider(props: [
@@ -31,7 +33,8 @@ final class ProviderTest extends TestCase
     /**
      * Confirms that provider context values do not leak outside its render.
      */
-    public function testProviderDoesNotLeakProvidedValueOutsideRender(): void
+    #[Test]
+    public function providerDoesNotLeakProvidedValueOutsideRender(): void
     {
         $context = new RenderContext();
         $provider = new Provider(
@@ -46,7 +49,8 @@ final class ProviderTest extends TestCase
     /**
      * Confirms that provider names must be strings.
      */
-    public function testProviderRejectsNonStringName(): void
+    #[Test]
+    public function providerRejectsNonStringName(): void
     {
         $provider = new Provider(props: ['name' => 123, 'value' => 'dark'], slot: new Slot('Body'));
 
@@ -58,7 +62,8 @@ final class ProviderTest extends TestCase
     /**
      * Confirms that providers require a default slot.
      */
-    public function testProviderRejectsMissingDefaultSlot(): void
+    #[Test]
+    public function providerRejectsMissingDefaultSlot(): void
     {
         $provider = new Provider(props: ['name' => 'theme', 'value' => 'dark']);
 

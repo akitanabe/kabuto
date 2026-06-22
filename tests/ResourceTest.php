@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kabuto\Tests;
 
 use Kabuto\Resource;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ResourceTest extends TestCase
@@ -12,7 +13,8 @@ final class ResourceTest extends TestCase
     /**
      * Confirms that a resource loads once and returns the cached value afterwards.
      */
-    public function testReadLoadsOnceAndReturnsCachedValue(): void
+    #[Test]
+    public function readLoadsOnceAndReturnsCachedValue(): void
     {
         $loadCount = 0;
         $resource = new Resource(static function () use (&$loadCount): string {
@@ -29,7 +31,8 @@ final class ResourceTest extends TestCase
     /**
      * Confirms that null is treated as a cached resource value.
      */
-    public function testReadCachesNullValue(): void
+    #[Test]
+    public function readCachesNullValue(): void
     {
         $loadCount = 0;
         $resource = new Resource(static function () use (&$loadCount): null {

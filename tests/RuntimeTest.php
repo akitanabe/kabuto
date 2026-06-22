@@ -11,6 +11,7 @@ use Kabuto\Escaper;
 use Kabuto\Kabuto;
 use Kabuto\RenderContext;
 use Kabuto\Slot;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use UnexpectedValueException;
 
@@ -19,7 +20,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that the engine renders a PHP component synchronously.
      */
-    public function testEngineRendersComponentSynchronously(): void
+    #[Test]
+    public function engineRendersComponentSynchronously(): void
     {
         $component = new class(['name' => '<Alice>']) extends BaseComponent {
             /**
@@ -45,7 +47,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that render context values are copied when extended.
      */
-    public function testRenderContextWithReturnsExtendedCopy(): void
+    #[Test]
+    public function renderContextWithReturnsExtendedCopy(): void
     {
         $context = new RenderContext(['theme' => 'light']);
         $next = $context->with('theme', 'dark')->with('locale', 'ja');
@@ -59,7 +62,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that components can render default and named slots.
      */
-    public function testBaseComponentExposesDefaultAndNamedSlots(): void
+    #[Test]
+    public function baseComponentExposesDefaultAndNamedSlots(): void
     {
         $component = new class(
             slot: new Slot('Body'),
@@ -84,7 +88,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that escaping follows HTML text escaping rules.
      */
-    public function testEscaperEscapesHtmlSpecialCharacters(): void
+    #[Test]
+    public function escaperEscapesHtmlSpecialCharacters(): void
     {
         self::assertSame(
             '&lt;span title=&quot;Tom&#039;s&quot;&gt;&amp;&lt;/span&gt;',
@@ -95,7 +100,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that unsupported values are rejected before escaping.
      */
-    public function testEscaperRejectsUnsupportedValues(): void
+    #[Test]
+    public function escaperRejectsUnsupportedValues(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
@@ -105,7 +111,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that dynamic slot content must render to text.
      */
-    public function testSlotRejectsNonStringClosureResult(): void
+    #[Test]
+    public function slotRejectsNonStringClosureResult(): void
     {
         $slot = new Slot(static fn(RenderContext $context): int => 123);
 
@@ -117,7 +124,8 @@ final class RuntimeTest extends TestCase
     /**
      * Confirms that the public component contract accepts a render context.
      */
-    public function testComponentContractRendersWithContext(): void
+    #[Test]
+    public function componentContractRendersWithContext(): void
     {
         $component = new class implements Component {
             /**

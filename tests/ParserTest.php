@@ -9,6 +9,7 @@ use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\TextNode;
 use Kabuto\Parser\ParseException;
 use Kabuto\Parser\Parser;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ParserTest extends TestCase
@@ -16,7 +17,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that text and normal HTML elements are parsed into AST nodes.
      */
-    public function testParserBuildsHtmlElementTree(): void
+    #[Test]
+    public function parserBuildsHtmlElementTree(): void
     {
         $nodes = new Parser()->parse('<section class="hero">Hello <strong>world</strong></section>');
 
@@ -33,7 +35,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that component tags expose static attributes, dynamic props, and slots.
      */
-    public function testParserBuildsComponentTreeWithPropsAndSlots(): void
+    #[Test]
+    public function parserBuildsComponentTreeWithPropsAndSlots(): void
     {
         $nodes = new Parser()->parse(
             '<x-card title="Welcome" :count="$count"><x-slot name="header">Head</x-slot><p>Body</p></x-card>',
@@ -56,7 +59,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that self-closing component tags are accepted.
      */
-    public function testParserBuildsSelfClosingComponent(): void
+    #[Test]
+    public function parserBuildsSelfClosingComponent(): void
     {
         $nodes = new Parser()->parse('<x-icon name="check" />');
 
@@ -69,7 +73,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that unsupported directive syntax fails explicitly.
      */
-    public function testParserRejectsBladeStyleDirectives(): void
+    #[Test]
+    public function parserRejectsBladeStyleDirectives(): void
     {
         $this->expectException(ParseException::class);
 
@@ -79,7 +84,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that arbitrary dynamic PHP expressions are rejected.
      */
-    public function testParserRejectsArbitraryDynamicPropExpressions(): void
+    #[Test]
+    public function parserRejectsArbitraryDynamicPropExpressions(): void
     {
         $this->expectException(ParseException::class);
 
@@ -89,7 +95,8 @@ final class ParserTest extends TestCase
     /**
      * Confirms that malformed nesting fails explicitly.
      */
-    public function testParserRejectsMismatchedClosingTags(): void
+    #[Test]
+    public function parserRejectsMismatchedClosingTags(): void
     {
         $this->expectException(ParseException::class);
 

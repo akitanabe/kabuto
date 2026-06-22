@@ -12,6 +12,7 @@ use Kabuto\Slot;
 use Kabuto\Tests\Fixtures\RegistryAlertComponent;
 use Kabuto\Tests\Fixtures\RegistryContextComponent;
 use Kabuto\Tests\Fixtures\RegistryMessageFactory;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use UnexpectedValueException;
 
@@ -20,7 +21,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that a registered class-string is instantiated with props and slots.
      */
-    public function testRegistryResolvesClassStringComponent(): void
+    #[Test]
+    public function registryResolvesClassStringComponent(): void
     {
         $registry = new ComponentRegistry([
             'alert' => RegistryAlertComponent::class,
@@ -40,7 +42,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that a registered factory can create a component.
      */
-    public function testRegistryResolvesFactoryComponent(): void
+    #[Test]
+    public function registryResolvesFactoryComponent(): void
     {
         $registry = new ComponentRegistry([
             'message' => new RegistryMessageFactory(),
@@ -54,7 +57,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that unknown component names fail explicitly.
      */
-    public function testRegistryRejectsUnknownComponentName(): void
+    #[Test]
+    public function registryRejectsUnknownComponentName(): void
     {
         $registry = new ComponentRegistry();
 
@@ -67,7 +71,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that factories must return a component instance.
      */
-    public function testRegistryRejectsFactoryThatDoesNotReturnComponent(): void
+    #[Test]
+    public function registryRejectsFactoryThatDoesNotReturnComponent(): void
     {
         $registry = new ComponentRegistry([
             'broken' => static fn(): string => 'not a component',
@@ -82,7 +87,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that the renderer resolves and renders a named component synchronously.
      */
-    public function testRendererRendersRegisteredComponentByName(): void
+    #[Test]
+    public function rendererRendersRegisteredComponentByName(): void
     {
         $renderer = new ComponentRenderer(new ComponentRegistry([
             'alert' => RegistryAlertComponent::class,
@@ -99,7 +105,8 @@ final class ComponentRegistryTest extends TestCase
     /**
      * Confirms that the renderer passes an explicit context to the component.
      */
-    public function testRendererPassesProvidedContext(): void
+    #[Test]
+    public function rendererPassesProvidedContext(): void
     {
         $renderer = new ComponentRenderer(new ComponentRegistry([
             'context' => RegistryContextComponent::class,

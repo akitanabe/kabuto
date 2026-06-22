@@ -8,6 +8,7 @@ use Kabuto\Provider;
 use Kabuto\RenderContext;
 use Kabuto\Resource;
 use Kabuto\Slot;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ResourceProviderTest extends TestCase
@@ -15,7 +16,8 @@ final class ResourceProviderTest extends TestCase
     /**
      * Confirms that a resource stored in render context can be read externally.
      */
-    public function testRenderContextStoresReadableResource(): void
+    #[Test]
+    public function renderContextStoresReadableResource(): void
     {
         $resource = new Resource(static fn(): string => 'profile-ready');
         $context = new RenderContext(['profile' => $resource]);
@@ -28,7 +30,8 @@ final class ResourceProviderTest extends TestCase
     /**
      * Confirms that a provider resource is readable by a child slot and remains scoped.
      */
-    public function testProviderResourceCanBeReadByChildSlotWithoutLeakingContext(): void
+    #[Test]
+    public function providerResourceCanBeReadByChildSlotWithoutLeakingContext(): void
     {
         $innerLoadCount = 0;
         $outerLoadCount = 0;
