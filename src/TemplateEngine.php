@@ -38,7 +38,7 @@ final class TemplateEngine
      */
     public function compile(string $template): CompiledTemplate
     {
-        return $this->rendererCompiler->compile($this->parser->parse($template));
+        return $template |> $this->parser->parse(...) |> $this->rendererCompiler->compile(...);
     }
 
     /**
@@ -46,6 +46,6 @@ final class TemplateEngine
      */
     public function compilePhp(string $template): string
     {
-        return $this->compiler->compile($this->parser->parse($template));
+        return $template |> $this->parser->parse(...) |> $this->compiler->compile(...);
     }
 }
