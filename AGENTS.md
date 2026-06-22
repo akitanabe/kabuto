@@ -6,7 +6,7 @@ Kabuto is a PHP template engine library. Runtime and compiler code lives in `src
 under the `Kabuto\` PSR-4 namespace. Key areas include `src/Parser/`,
 `src/Ast/`, and `src/Compiler/`. Tests live in `tests/` under the
 `Kabuto\Tests\` namespace, with reusable test-only components in
-`tests/Fixtures/`. Project notes and plans are kept in `docs/`.
+`tests/Fixtures/`.
 
 ## Build, Test, and Development Commands
 
@@ -22,22 +22,24 @@ composer format:check   # verify formatting without changing files
 composer check          # run tests, analysis, lint, and format check
 ```
 
-Use `composer check` before opening a pull request when possible. Running
-`composer analyse` may require elevated permissions in restricted environments.
+Use `composer check` before opening a pull request when possible. `composer
+analyse` may require elevated permissions in restricted environments.
 
 ## Coding Style & Naming Conventions
 
-Use PHP 8.5 features where they improve clarity. Follow PSR-4 organization: one
-primary class or interface per file, with the path matching its namespace, for
-example `Kabuto\Parser\TemplateParser` in `src/Parser/TemplateParser.php`. Keep
-names descriptive: parser classes describe what they parse, renderer classes what
-they render, and AST node classes end in `Node`. Format with Mago rather than
-manual style-only edits. Add a brief purpose comment to new functions or methods
-when intent is not obvious from the signature.
+Use PHP 8.5 features where they improve clarity. For consecutive transformations,
+prefer the pipe operator, for example `"Hello World" |> strtoupper(...)`, when it
+reads better than nested calls. Follow PSR-4 organization: one primary class or
+interface per file, with the path matching its namespace. Keep names descriptive:
+parser classes describe what they parse, renderer classes what they render, and
+AST node classes end in `Node`. Format with Mago rather than manual style-only
+edits. Add a brief purpose comment to new functions or methods when intent is not
+obvious from the signature.
 
 ## Testing Guidelines
 
-PHPUnit 12 is the test framework. Add or update tests for externally observable
+PHPUnit 12 is the test framework. Use PHPUnit attributes such as `#[Test]`
+instead of docblock annotations. Add or update tests for externally observable
 behavior before changing implementation details. Prefer the closest existing test
 file, such as `tests/ParserTest.php` or `tests/TemplateEngineTest.php`. Name
 tests with clear behavior-oriented method names and place shared fixtures in
