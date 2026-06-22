@@ -13,4 +13,12 @@ final class Kabuto
     {
         return '0.1.0';
     }
+
+    /**
+     * Renders a component synchronously with the provided context.
+     */
+    public function render(Component $component, ?RenderContext $context = null): string
+    {
+        return $component->render($context ?? new RenderContext());
+    }
 }
