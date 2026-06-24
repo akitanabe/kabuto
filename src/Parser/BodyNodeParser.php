@@ -17,8 +17,9 @@ final readonly class BodyNodeParser
     public function __construct(
         private SourceCursor $cursor,
         private TemplateParser $templateParser,
+        private ComponentPrefix $componentPrefix,
     ) {
-        $this->componentParser = new ComponentParser($templateParser);
+        $this->componentParser = new ComponentParser($templateParser, $componentPrefix);
     }
 
     /**
@@ -26,7 +27,7 @@ final readonly class BodyNodeParser
      */
     public function parseTopLevelTag(OpenTag $tag): Node
     {
-        if ($tag->name === 'x-slot') {
+        if ($tag->name === $this->componentPrefix->slotTagName()) {
             throw ParseException::at('Named slots are only supported inside components', $this->cursor->offset());
         }
 
@@ -38,7 +39,7 @@ final readonly class BodyNodeParser
      */
     public function parseComponentTag(OpenTag $tag): Node
     {
-        if ($tag->name === 'x-slot') {
+        if ($tag->name === $this->componentPrefix->slotTagName()) {
             return $this->componentParser->parseNamedSlot($tag);
         }
 
@@ -50,7 +51,7 @@ final readonly class BodyNodeParser
      */
     private function parseRegularTag(OpenTag $tag): Node
     {
-        if (str_starts_with($tag->name, 'x-')) {
+        if ($this->componentPrefix->matches($tag->name)) {
             return $this->componentParser->parseComponent($tag);
         }
 

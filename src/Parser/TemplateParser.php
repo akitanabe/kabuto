@@ -18,9 +18,10 @@ final class TemplateParser
      */
     public function __construct(
         private readonly SourceCursor $cursor,
+        ComponentPrefix $componentPrefix,
     ) {
         $this->tagParser = new TagParser($cursor);
-        $this->bodyNodeParser = new BodyNodeParser($cursor, $this);
+        $this->bodyNodeParser = new BodyNodeParser($cursor, $this, $componentPrefix);
     }
 
     /**
@@ -101,7 +102,7 @@ final class TemplateParser
     }
 
     /**
-     * Parses one component child where x-slot is a named slot.
+     * Parses one component child where configured slot tags are named slots.
      */
     private function parseComponentChild(): Node
     {

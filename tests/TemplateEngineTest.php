@@ -11,6 +11,7 @@ use Kabuto\Component;
 use Kabuto\ComponentRegistry;
 use Kabuto\ComponentRenderer;
 use Kabuto\Escaper;
+use Kabuto\Parser\Parser;
 use Kabuto\Provider;
 use Kabuto\RenderContext;
 use Kabuto\TemplateEngine;
@@ -48,7 +49,7 @@ final class TemplateEngineTest extends TestCase
 
         self::assertSame(
             '<aside data-type="error">保存に失敗しました</aside>',
-            $engine->render('<x-alert type="error">保存に失敗しました</x-alert>'),
+            $engine->render('<k-alert type="error">保存に失敗しました</k-alert>'),
         );
     }
 
@@ -62,7 +63,7 @@ final class TemplateEngineTest extends TestCase
             'user-card' => TemplateUserCardComponent::class,
         ])));
 
-        self::assertSame('<article>Alice</article>', $engine->render('<x-user-card :user="$user" />', [
+        self::assertSame('<article>Alice</article>', $engine->render('<k-user-card :user="$user" />', [
             'user' => 'Alice',
         ]));
     }
@@ -79,7 +80,7 @@ final class TemplateEngineTest extends TestCase
 
         self::assertSame(
             '<header>ヘッダー</header><main>本文</main>',
-            $engine->render('<x-layout><x-slot name="header">ヘッダー</x-slot>本文</x-layout>'),
+            $engine->render('<k-layout><k-slot name="header">ヘッダー</k-slot>本文</k-layout>'),
         );
     }
 
@@ -94,7 +95,7 @@ final class TemplateEngineTest extends TestCase
             'cart-summary' => $this->contextReader('cart'),
         ])));
 
-        self::assertSame('<strong>1200</strong>', $engine->render('<x-provider name="cart" :value="$cart"><x-cart-summary /></x-provider>', [
+        self::assertSame('<strong>1200</strong>', $engine->render('<k-provider name="cart" :value="$cart"><k-cart-summary /></k-provider>', [
             'cart' => 1200,
         ]));
     }
@@ -110,9 +111,30 @@ final class TemplateEngineTest extends TestCase
             'cart-summary' => $this->contextReader('cart'),
         ])));
 
-        self::assertSame('<strong>2400</strong>', $engine->render('<x-store:provide name="cart" :value="$cart"><x-cart-summary /></x-store:provide>', [
+        self::assertSame('<strong>2400</strong>', $engine->render('<k-store:provide name="cart" :value="$cart"><k-cart-summary /></k-store:provide>', [
             'cart' => 2400,
         ]));
+    }
+
+    /**
+     * Confirms that x-prefixed attributes stay HTML and custom prefixes render components.
+     */
+    #[Test]
+    public function engineKeepsXAttributesAndRendersCustomPrefixComponents(): void
+    {
+        $defaultEngine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry()));
+        $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
+            'alert' => TemplateAlertComponent::class,
+        ])), parser: new Parser(componentPrefix: 'ui-'));
+
+        self::assertSame(
+            '<div x-data="{ open: true }">Menu</div>',
+            $defaultEngine->render('<div x-data="{ open: true }">Menu</div>'),
+        );
+        self::assertSame(
+            '<aside data-type="info">更新しました</aside>',
+            $engine->render('<ui-alert type="info">更新しました</ui-alert>'),
+        );
     }
 
     /**
