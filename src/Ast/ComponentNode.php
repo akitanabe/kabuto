@@ -31,7 +31,7 @@ final readonly class ComponentNode implements Node
     }
 
     /**
-     * Returns the component name without the x- prefix.
+     * Returns the component name without the configured tag prefix.
      */
     public function name(): string
     {

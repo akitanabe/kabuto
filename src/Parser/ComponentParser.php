@@ -14,6 +14,7 @@ final readonly class ComponentParser
      */
     public function __construct(
         private TemplateParser $templateParser,
+        private ComponentPrefix $componentPrefix,
     ) {}
 
     /**
@@ -21,7 +22,11 @@ final readonly class ComponentParser
      */
     public function parseComponent(OpenTag $tag): ComponentNode
     {
-        $componentName = substr($tag->name, offset: 2);
+        $componentName = $this->componentPrefix->removeFrom($tag->name);
+        if ($componentName === '') {
+            throw ParseException::at('Component name must not be empty', 0);
+        }
+
         if ($tag->selfClosing) {
             return new ComponentNode($componentName, $tag->attributes, $tag->props);
         }
@@ -58,6 +63,9 @@ final readonly class ComponentParser
             throw ParseException::at('Named slots require a name attribute', 0);
         }
 
-        return new NamedSlotNode($tag->attributes[0]->value(), $this->templateParser->parseChildren('x-slot'));
+        return new NamedSlotNode(
+            $tag->attributes[0]->value(),
+            $this->templateParser->parseChildren($this->componentPrefix->slotTagName()),
+        );
     }
 }

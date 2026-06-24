@@ -8,6 +8,16 @@ use Kabuto\Ast\Node;
 
 final class Parser
 {
+    private ComponentPrefix $componentPrefix;
+
+    /**
+     * Stores parser configuration shared by each parsed template.
+     */
+    public function __construct(string $componentPrefix = 'k-')
+    {
+        $this->componentPrefix = new ComponentPrefix($componentPrefix);
+    }
+
     /**
      * Parses a template fragment into top-level AST nodes.
      *
@@ -19,6 +29,6 @@ final class Parser
             throw ParseException::at('Directives are not supported', 0);
         }
 
-        return new TemplateParser(new SourceCursor($source))->parse();
+        return new TemplateParser(new SourceCursor($source), $this->componentPrefix)->parse();
     }
 }
