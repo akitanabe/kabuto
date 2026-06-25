@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
+use RuntimeException;
+
 abstract class BaseComponent implements Component
 {
+    private ?TemplateEngine $templateEngine = null;
+
     /**
      * Stores props and slots shared by class-based components.
      *
@@ -36,5 +40,27 @@ abstract class BaseComponent implements Component
         }
 
         return $this->slots[$name] ?? null;
+    }
+
+    /**
+     * Injects the current engine so component instances can render template files.
+     */
+    public function setTemplateEngine(TemplateEngine $templateEngine): void
+    {
+        $this->templateEngine = $templateEngine;
+    }
+
+    /**
+     * Renders a component-owned template file with the current engine.
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function view(string $path, array $data = [], ?RenderContext $context = null): string
+    {
+        if ($this->templateEngine === null) {
+            throw new RuntimeException('TemplateEngine is not configured for component views.');
+        }
+
+        return $this->templateEngine->renderFile($path, $data, $context);
     }
 }

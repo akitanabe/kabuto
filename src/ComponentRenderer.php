@@ -11,7 +11,19 @@ final class ComponentRenderer
      */
     public function __construct(
         private ComponentRegistry $registry,
+        private ?TemplateEngine $templateEngine = null,
     ) {}
+
+    /**
+     * Returns a renderer clone bound to the current template engine.
+     */
+    public function withTemplateEngine(TemplateEngine $templateEngine): self
+    {
+        $renderer = clone $this;
+        $renderer->templateEngine = $templateEngine;
+
+        return $renderer;
+    }
 
     /**
      * Resolves a component by name and renders it synchronously.
@@ -26,6 +38,12 @@ final class ComponentRenderer
         array $slots = [],
         ?RenderContext $context = null,
     ): string {
-        return $this->registry->resolve($name, $props, $slot, $slots)->render($context ?? new RenderContext());
+        $component = $this->registry->resolve($name, $props, $slot, $slots);
+
+        if ($component instanceof BaseComponent && $this->templateEngine !== null) {
+            $component->setTemplateEngine($this->templateEngine);
+        }
+
+        return $component->render($context ?? new RenderContext());
     }
 }

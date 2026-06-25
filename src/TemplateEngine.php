@@ -8,6 +8,7 @@ use Kabuto\Compiler\CompiledTemplate;
 use Kabuto\Compiler\TemplateCompiler;
 use Kabuto\Compiler\TemplateRendererCompiler;
 use Kabuto\Parser\Parser;
+use RuntimeException;
 
 final class TemplateEngine
 {
@@ -19,6 +20,7 @@ final class TemplateEngine
         private Parser $parser = new Parser(),
         private TemplateCompiler $compiler = new TemplateCompiler(),
         private TemplateRendererCompiler $rendererCompiler = new TemplateRendererCompiler(),
+        private ?TemplateLoader $loader = null,
     ) {}
 
     /**
@@ -30,7 +32,21 @@ final class TemplateEngine
     {
         $renderer = $this->compile($template);
 
-        return $renderer($data, $context ?? new RenderContext(), $this->renderer);
+        return $renderer($data, $context ?? new RenderContext(), $this->renderer->withTemplateEngine($this));
+    }
+
+    /**
+     * Loads a root-relative template file and renders it with render data and context.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function renderFile(string $path, array $data = [], ?RenderContext $context = null): string
+    {
+        if ($this->loader === null) {
+            throw new RuntimeException('TemplateLoader is not configured.');
+        }
+
+        return $this->render($this->loader->load($path), $data, $context);
     }
 
     /**
