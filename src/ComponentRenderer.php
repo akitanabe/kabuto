@@ -38,11 +38,7 @@ final class ComponentRenderer
         array $slots = [],
         ?RenderContext $context = null,
     ): string {
-        $component = $this->registry->resolve($name, $props, $slot, $slots);
-
-        if ($component instanceof BaseComponent && $this->templateEngine !== null) {
-            $component->setTemplateEngine($this->templateEngine);
-        }
+        $component = $this->registry->resolve($name, $props, $slot, $slots, $this->templateEngine);
 
         return $component->render($context ?? new RenderContext());
     }

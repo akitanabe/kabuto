@@ -24,8 +24,13 @@ final class ComponentRegistry
      * @param array<string, mixed> $props
      * @param array<string, Slot> $slots
      */
-    public function resolve(string $name, array $props = [], ?Slot $slot = null, array $slots = []): Component
-    {
+    public function resolve(
+        string $name,
+        array $props = [],
+        ?Slot $slot = null,
+        array $slots = [],
+        ?TemplateEngine $templateEngine = null,
+    ): Component {
         if (!array_key_exists($name, $this->definitions)) {
             throw new InvalidArgumentException("Component is not registered: {$name}");
         }
@@ -39,14 +44,14 @@ final class ComponentRegistry
                 );
             }
 
-            return new $definition($props, $slot, $slots);
+            return new $definition($props, $slot, $slots, $templateEngine);
         }
 
         if (!is_callable($definition)) {
             throw new InvalidArgumentException("Registered component definition is not callable: {$name}");
         }
 
-        $component = $definition($props, $slot, $slots);
+        $component = $definition($props, $slot, $slots, $templateEngine);
 
         if (!$component instanceof Component) {
             throw new UnexpectedValueException('Component factory must return an instance of Kabuto\Component.');

@@ -8,8 +8,6 @@ use RuntimeException;
 
 abstract class BaseComponent implements Component
 {
-    private ?TemplateEngine $templateEngine = null;
-
     /**
      * Stores props and slots shared by class-based components.
      *
@@ -20,6 +18,7 @@ abstract class BaseComponent implements Component
         protected array $props = [],
         protected ?Slot $slot = null,
         protected array $slots = [],
+        private ?TemplateEngine $templateEngine = null,
     ) {}
 
     /**
@@ -40,14 +39,6 @@ abstract class BaseComponent implements Component
         }
 
         return $this->slots[$name] ?? null;
-    }
-
-    /**
-     * Injects the current engine so component instances can render template files.
-     */
-    public function setTemplateEngine(TemplateEngine $templateEngine): void
-    {
-        $this->templateEngine = $templateEngine;
     }
 
     /**
