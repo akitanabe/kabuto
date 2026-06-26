@@ -27,26 +27,39 @@ final class TemplateEngine
      * Renders a template string with render data and context.
      *
      * @param array<string, mixed> $data
+     * @param array<string, Slot> $slots
      */
-    public function render(string $template, array $data = [], ?RenderContext $context = null): string
-    {
+    public function render(
+        string $template,
+        array $data = [],
+        ?RenderContext $context = null,
+        ?Slot $slot = null,
+        array $slots = [],
+    ): string {
         $renderer = $this->compile($template);
+        $runtimeRenderer = $this->renderer->withTemplateEngine($this)->withSlots($slot, $slots);
 
-        return $renderer($data, $context ?? new RenderContext(), $this->renderer->withTemplateEngine($this));
+        return $renderer($data, $context ?? new RenderContext(), $runtimeRenderer);
     }
 
     /**
      * Loads a root-relative template file and renders it with render data and context.
      *
      * @param array<string, mixed> $data
+     * @param array<string, Slot> $slots
      */
-    public function renderFile(string $path, array $data = [], ?RenderContext $context = null): string
-    {
+    public function renderFile(
+        string $path,
+        array $data = [],
+        ?RenderContext $context = null,
+        ?Slot $slot = null,
+        array $slots = [],
+    ): string {
         if ($this->loader === null) {
             throw new RuntimeException('TemplateLoader is not configured.');
         }
 
-        return $this->render($this->loader->load($path), $data, $context);
+        return $this->render($this->loader->load($path), $data, $context, $slot, $slots);
     }
 
     /**

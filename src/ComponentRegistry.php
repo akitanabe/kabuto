@@ -32,6 +32,10 @@ final class ComponentRegistry
         ?TemplateEngine $templateEngine = null,
     ): Component {
         if (!array_key_exists($name, $this->definitions)) {
+            if ($templateEngine !== null) {
+                return new TemplateOnlyComponent($name, $props, $slot, $slots, $templateEngine);
+            }
+
             throw new InvalidArgumentException("Component is not registered: {$name}");
         }
 

@@ -9,6 +9,7 @@ use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
+use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
 
 final class TemplateCompiler
@@ -61,6 +62,12 @@ final class TemplateCompiler
 
         if ($node instanceof ComponentNode) {
             return $this->compileComponent($node);
+        }
+
+        if ($node instanceof SlotOutletNode) {
+            $slotName = $node->name() === null ? 'null' : $this->string($node->name());
+
+            return '$renderer->slotOutlet(' . $slotName . ', $context)';
         }
 
         throw CompileException::unsupportedNode($node);

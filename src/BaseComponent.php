@@ -52,6 +52,6 @@ abstract class BaseComponent implements Component
             throw new RuntimeException('TemplateEngine is not configured for component views.');
         }
 
-        return $this->templateEngine->renderFile($path, $data, $context);
+        return $this->templateEngine->renderFile($path, $data, $context, $this->slot, $this->slots);
     }
 }

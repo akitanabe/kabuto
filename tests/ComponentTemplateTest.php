@@ -12,6 +12,7 @@ use Kabuto\TemplateLoader;
 use Kabuto\TemplateNotFoundException;
 use Kabuto\Tests\Fixtures\ComponentTemplateCardComponent;
 use Kabuto\Tests\Fixtures\ComponentTemplateComponent;
+use Kabuto\Tests\Fixtures\ComponentTemplateLayoutComponent;
 use Kabuto\Tests\Fixtures\TemplateUserCardComponent;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -48,6 +49,24 @@ final class ComponentTemplateTest extends TestCase
         self::assertSame("<article>Alice in R&amp;D</article>\n", $engine->render('<k-template-card name="Alice" />', context: new RenderContext([
             'place' => 'R&D',
         ])));
+    }
+
+    /**
+     * Confirms that class components can render received slots through template outlets.
+     */
+    #[Test]
+    public function componentTemplateRendersReceivedSlotOutlets(): void
+    {
+        $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
+            'component-template-layout' => ComponentTemplateLayoutComponent::class,
+        ])), loader: new TemplateLoader(__DIR__ . '/Fixtures/templates'));
+
+        self::assertSame(
+            "<header>Header</header><main>Body</main>\n",
+            $engine->render(
+                '<k-component-template-layout><k-slot name="header">Header</k-slot>Body</k-component-template-layout>',
+            ),
+        );
     }
 
     /**

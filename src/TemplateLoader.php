@@ -18,6 +18,7 @@ final class TemplateLoader
      */
     public function load(string $path): string
     {
+        $path = $this->pathWithDefaultExtension($path);
         $root = realpath($this->root);
         $file = realpath($this->root . DIRECTORY_SEPARATOR . $path);
 
@@ -32,6 +33,22 @@ final class TemplateLoader
         }
 
         return $contents;
+    }
+
+    /**
+     * Adds the default template extension when the caller did not provide one.
+     */
+    private function pathWithDefaultExtension(string $path): string
+    {
+        if (basename($path) === '.' || basename($path) === '..') {
+            return $path;
+        }
+
+        if (pathinfo($path, PATHINFO_EXTENSION) !== '') {
+            return $path;
+        }
+
+        return $path . '.kbt';
     }
 
     /**
