@@ -7,6 +7,7 @@ namespace Kabuto\Tests;
 use InvalidArgumentException;
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
 use Kabuto\Parser\ParseException;
 use Kabuto\Parser\Parser;
@@ -56,6 +57,27 @@ final class ParserTest extends TestCase
         self::assertSame('Head', $header->content());
         self::assertInstanceOf(ElementNode::class, $nodes[0]->children()[0]);
         self::assertSame('p', $nodes[0]->children()[0]->name());
+
+        $outlets = new Parser()->parse('<k-slot /><k-slot name="header" />');
+
+        self::assertCount(2, $outlets);
+        self::assertInstanceOf(SlotOutletNode::class, $outlets[0]);
+        self::assertNull($outlets[0]->name());
+        self::assertInstanceOf(SlotOutletNode::class, $outlets[1]);
+        self::assertSame('header', $outlets[1]->name());
+
+        $componentWithOutlets = new Parser()->parse(
+            '<k-card><k-slot /><k-slot name="header" /><k-slot name="footer">Foot</k-slot></k-card>',
+        );
+
+        self::assertCount(1, $componentWithOutlets);
+        self::assertInstanceOf(ComponentNode::class, $componentWithOutlets[0]);
+        self::assertCount(2, $componentWithOutlets[0]->children());
+        self::assertInstanceOf(SlotOutletNode::class, $componentWithOutlets[0]->children()[0]);
+        self::assertNull($componentWithOutlets[0]->children()[0]->name());
+        self::assertInstanceOf(SlotOutletNode::class, $componentWithOutlets[0]->children()[1]);
+        self::assertSame('header', $componentWithOutlets[0]->children()[1]->name());
+        self::assertArrayHasKey('footer', $componentWithOutlets[0]->slots());
     }
 
     /**
@@ -93,9 +115,24 @@ final class ParserTest extends TestCase
     #[Test]
     public function parserRejectsArbitraryDynamicPropExpressions(): void
     {
-        $this->expectException(ParseException::class);
+        $sources = [
+            '<k-card :count="$count + 1" />',
+            '<k-slot :name="$name" />',
+            '<k-slot class="hidden" />',
+            '<k-slot name="header" class="hidden" />',
+        ];
+        $rejected = [];
 
-        new Parser()->parse('<k-card :count="$count + 1" />');
+        foreach ($sources as $source) {
+            try {
+                new Parser()->parse($source);
+                self::fail('Expected parser to reject ' . $source);
+            } catch (ParseException) {
+                $rejected[] = $source;
+            }
+        }
+
+        self::assertSame($sources, $rejected);
     }
 
     /**

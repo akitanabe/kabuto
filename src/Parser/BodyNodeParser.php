@@ -28,6 +28,10 @@ final readonly class BodyNodeParser
     public function parseTopLevelTag(OpenTag $tag): Node
     {
         if ($tag->name === $this->componentPrefix->slotTagName()) {
+            if ($tag->selfClosing) {
+                return $this->componentParser->parseSlotOutlet($tag);
+            }
+
             throw ParseException::at('Named slots are only supported inside components', $this->cursor->offset());
         }
 
@@ -40,6 +44,10 @@ final readonly class BodyNodeParser
     public function parseComponentTag(OpenTag $tag): Node
     {
         if ($tag->name === $this->componentPrefix->slotTagName()) {
+            if ($tag->selfClosing) {
+                return $this->componentParser->parseSlotOutlet($tag);
+            }
+
             return $this->componentParser->parseNamedSlot($tag);
         }
 

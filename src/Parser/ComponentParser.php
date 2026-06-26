@@ -6,6 +6,7 @@ namespace Kabuto\Parser;
 
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\NamedSlotNode;
+use Kabuto\Ast\SlotOutletNode;
 
 final readonly class ComponentParser
 {
@@ -67,5 +68,29 @@ final readonly class ComponentParser
             $tag->attributes[0]->value(),
             $this->templateParser->parseChildren($this->componentPrefix->slotTagName()),
         );
+    }
+
+    /**
+     * Parses a self-closing slot tag into a slot outlet.
+     */
+    public function parseSlotOutlet(OpenTag $tag): SlotOutletNode
+    {
+        if ($tag->props !== []) {
+            throw ParseException::at('Dynamic props are not supported on slot outlets', 0);
+        }
+
+        if (!$tag->selfClosing) {
+            throw ParseException::at('Slot outlets must be self-closing', 0);
+        }
+
+        if ($tag->attributes === []) {
+            return new SlotOutletNode(null);
+        }
+
+        if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name') {
+            throw ParseException::at('Slot outlets only support a name attribute', 0);
+        }
+
+        return new SlotOutletNode($tag->attributes[0]->value());
     }
 }

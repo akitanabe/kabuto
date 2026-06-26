@@ -1,0 +1,1 @@
+<header><k-slot name="header" /></header><main><k-slot /></main>

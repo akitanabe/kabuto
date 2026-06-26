@@ -7,6 +7,7 @@ namespace Kabuto\Compiler;
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\Node;
+use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
@@ -55,6 +56,10 @@ final class NodeRenderer
 
         if ($node instanceof ComponentNode) {
             return $this->componentRenderer->render($node, $data, $context, $renderer, $this);
+        }
+
+        if ($node instanceof SlotOutletNode) {
+            return $renderer->slotOutlet($node->name(), $context);
         }
 
         throw CompileException::unsupportedNode($node);
