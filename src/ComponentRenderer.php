@@ -65,8 +65,9 @@ final class ComponentRenderer
         ?Slot $slot = null,
         array $slots = [],
         ?RenderContext $context = null,
+        ?AttributeBag $attributes = null,
     ): string {
-        $component = $this->registry->resolve($name, $props, $slot, $slots, $this->templateEngine);
+        $component = $this->registry->resolve($name, $props, $slot, $slots, $this->templateEngine, $attributes);
 
         return $component->render($context ?? new RenderContext());
     }

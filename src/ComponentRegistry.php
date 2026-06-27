@@ -30,10 +30,17 @@ final class ComponentRegistry
         ?Slot $slot = null,
         array $slots = [],
         ?TemplateEngine $templateEngine = null,
+        ?AttributeBag $attributes = null,
     ): Component {
         if (!array_key_exists($name, $this->definitions)) {
             if ($templateEngine !== null) {
-                return new TemplateOnlyComponent($name, $props, $slot, $slots, $templateEngine);
+                return new TemplateOnlyComponent(
+                    $name,
+                    $this->templateOnlyData($props, $attributes),
+                    $slot,
+                    $slots,
+                    $templateEngine,
+                );
             }
 
             throw new InvalidArgumentException("Component is not registered: {$name}");
@@ -48,6 +55,16 @@ final class ComponentRegistry
                 );
             }
 
+            if (is_subclass_of($definition, BaseComponent::class)) {
+                return new $definition(
+                    $this->acceptedProps($definition, $props, $attributes),
+                    $slot,
+                    $slots,
+                    $templateEngine,
+                    $attributes ?? [],
+                );
+            }
+
             return new $definition($props, $slot, $slots, $templateEngine);
         }
 
@@ -55,12 +72,43 @@ final class ComponentRegistry
             throw new InvalidArgumentException("Registered component definition is not callable: {$name}");
         }
 
-        $component = $definition($props, $slot, $slots, $templateEngine);
+        $component = $definition($props, $slot, $slots, $templateEngine, $attributes ?? new AttributeBag());
 
         if (!$component instanceof Component) {
             throw new UnexpectedValueException('Component factory must return an instance of Kabuto\Component.');
         }
 
         return $component;
+    }
+
+    /**
+     * Filters dynamic props once component attributes are explicitly separated.
+     *
+     * @param class-string<BaseComponent> $definition
+     * @param array<string, mixed> $props
+     * @return array<string, mixed>
+     */
+    private function acceptedProps(string $definition, array $props, ?AttributeBag $attributes): array
+    {
+        if ($attributes === null) {
+            return $props;
+        }
+
+        return array_intersect_key($props, array_flip($definition::acceptsProps()));
+    }
+
+    /**
+     * Adds the normal attribute bag to template-only render data.
+     *
+     * @param array<string, mixed> $props
+     * @return array<string, mixed>
+     */
+    private function templateOnlyData(array $props, ?AttributeBag $attributes): array
+    {
+        if ($attributes === null) {
+            return $props;
+        }
+
+        return $props + ['attributes' => $attributes];
     }
 }
