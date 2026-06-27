@@ -146,6 +146,22 @@ final class ComponentRegistryTest extends TestCase
     }
 
     /**
+     * Confirms that direct renderer props are limited to component-defined props.
+     */
+    #[Test]
+    public function rendererFiltersDirectPropsToAcceptedComponentProps(): void
+    {
+        $renderer = new ComponentRenderer(new ComponentRegistry([
+            'panel' => AttributePanelComponent::class,
+        ]));
+
+        self::assertSame('<section class="panel">Welcome|no-prop|ignored</section>', $renderer->component('panel', [
+            'title' => 'Welcome',
+            'extra' => 'drop me',
+        ]));
+    }
+
+    /**
      * Confirms that template-only components keep every dynamic prop.
      */
     #[Test]
