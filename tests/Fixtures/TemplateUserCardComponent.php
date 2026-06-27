@@ -10,6 +10,8 @@ use Kabuto\RenderContext;
 
 final class TemplateUserCardComponent extends BaseComponent
 {
+    public string $user = '';
+
     /**
      * Renders the user prop inside an article element.
      */

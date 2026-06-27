@@ -10,6 +10,8 @@ use Kabuto\RenderContext;
 
 final class RegistryMessageComponent extends BaseComponent
 {
+    public string $message = '';
+
     /**
      * Renders the message prop as escaped text.
      */

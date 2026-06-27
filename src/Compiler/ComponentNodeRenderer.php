@@ -8,6 +8,8 @@ use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
+use Kabuto\AttributeBag;
+use Kabuto\ComponentInvocation;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
 use Kabuto\Slot;
@@ -28,22 +30,40 @@ final class ComponentNodeRenderer
     ): string {
         return $renderer->component(
             $node->name(),
-            $this->props($node->attributes(), $node->props(), $data),
-            $this->slot($node->children(), $data, $renderer, $nodeRenderer),
-            $this->slots($node->slots(), $data, $renderer, $nodeRenderer),
-            $context,
+            new ComponentInvocation(
+                $this->props($node->props(), $data),
+                $this->attributes($node->attributes()),
+                $this->slot($node->children(), $data, $renderer, $nodeRenderer),
+                $this->slots($node->slots(), $data, $renderer, $nodeRenderer),
+                $context,
+            ),
         );
     }
 
     /**
-     * Builds component props from static attributes and dynamic render data.
+     * Builds component props from dynamic render data.
      *
-     * @param list<AttributeNode> $attributes
      * @param list<PropNode> $props
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function props(array $attributes, array $props, array $data): array
+    private function props(array $props, array $data): array
+    {
+        $values = [];
+
+        foreach ($props as $prop) {
+            $values[$prop->name()] = $data[substr($prop->expression(), offset: 1)] ?? null;
+        }
+
+        return $values;
+    }
+
+    /**
+     * Builds a component attribute bag from static attributes.
+     *
+     * @param list<AttributeNode> $attributes
+     */
+    private function attributes(array $attributes): AttributeBag
     {
         $values = [];
 
@@ -51,11 +71,7 @@ final class ComponentNodeRenderer
             $values[$attribute->name()] = $attribute->value();
         }
 
-        foreach ($props as $prop) {
-            $values[$prop->name()] = $data[substr($prop->expression(), offset: 1)] ?? null;
-        }
-
-        return $values;
+        return new AttributeBag($values);
     }
 
     /**

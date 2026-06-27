@@ -95,7 +95,8 @@ final class TemplateEngineTest extends TestCase
             'cart-summary' => $this->contextReader('cart'),
         ])));
 
-        self::assertSame('<strong>1200</strong>', $engine->render('<k-provider name="cart" :value="$cart"><k-cart-summary /></k-provider>', [
+        self::assertSame('<strong>1200</strong>', $engine->render('<k-provider :name="$name" :value="$cart"><k-cart-summary /></k-provider>', [
+            'name' => 'cart',
             'cart' => 1200,
         ]));
     }
@@ -111,7 +112,8 @@ final class TemplateEngineTest extends TestCase
             'cart-summary' => $this->contextReader('cart'),
         ])));
 
-        self::assertSame('<strong>2400</strong>', $engine->render('<k-store:provide name="cart" :value="$cart"><k-cart-summary /></k-store:provide>', [
+        self::assertSame('<strong>2400</strong>', $engine->render('<k-store:provide :name="$name" :value="$cart"><k-cart-summary /></k-store:provide>', [
+            'name' => 'cart',
             'cart' => 2400,
         ]));
     }
