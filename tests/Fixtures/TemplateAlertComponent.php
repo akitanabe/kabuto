@@ -11,13 +11,13 @@ use Kabuto\RenderContext;
 final class TemplateAlertComponent extends BaseComponent
 {
     /**
-     * Renders an alert with an escaped type prop and default slot content.
+     * Renders an alert with an escaped type attribute and default slot content.
      */
     public function render(RenderContext $context): string
     {
         return (
             '<aside data-type="'
-            . Escaper::escape($this->prop('type'))
+            . Escaper::escape($this->attribute('type'))
             . '">'
             . $this->slot()?->render($context)
             . '</aside>'

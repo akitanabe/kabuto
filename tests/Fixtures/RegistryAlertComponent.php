@@ -10,6 +10,8 @@ use Kabuto\RenderContext;
 
 final class RegistryAlertComponent extends BaseComponent
 {
+    public string $kind = '';
+
     /**
      * Renders an alert with escaped props and slots.
      */

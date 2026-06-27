@@ -6,6 +6,7 @@ namespace Kabuto\Tests;
 
 use InvalidArgumentException;
 use Kabuto\AttributeBag;
+use Kabuto\ComponentInvocation;
 use Kabuto\ComponentRegistry;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
@@ -132,13 +133,15 @@ final class ComponentRegistryTest extends TestCase
 
         self::assertSame('<section class="panel caller" id="main" data-role="card">Welcome|no-prop|ignored</section>', $renderer->component(
             'panel',
-            ['title' => 'Welcome', 'extra' => 'drop me'],
-            context: new RenderContext(),
-            attributes: new AttributeBag([
-                'id' => 'main',
-                'class' => 'caller',
-                'data-role' => 'card',
-            ]),
+            new ComponentInvocation(
+                ['title' => 'Welcome', 'extra' => 'drop me'],
+                new AttributeBag([
+                    'id' => 'main',
+                    'class' => 'caller',
+                    'data-role' => 'card',
+                ]),
+                context: new RenderContext(),
+            ),
         ));
     }
 
@@ -157,9 +160,11 @@ final class ComponentRegistryTest extends TestCase
 
         self::assertSame("<article>Alice &amp; Bob</article>\n", $renderer->component(
             'fallback-card',
-            ['name' => 'Alice & Bob', 'unused' => 'allowed'],
-            context: new RenderContext(),
-            attributes: new AttributeBag(['class' => 'caller']),
+            new ComponentInvocation(
+                ['name' => 'Alice & Bob', 'unused' => 'allowed'],
+                new AttributeBag(['class' => 'caller']),
+                context: new RenderContext(),
+            ),
         ));
     }
 }

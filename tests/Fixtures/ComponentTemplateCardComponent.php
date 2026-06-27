@@ -10,6 +10,8 @@ use Kabuto\RenderContext;
 
 final class ComponentTemplateCardComponent extends BaseComponent
 {
+    public string $name = '';
+
     /**
      * Renders a card using both template data and the current render context.
      */

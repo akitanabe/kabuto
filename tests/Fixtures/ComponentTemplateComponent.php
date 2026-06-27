@@ -9,6 +9,8 @@ use Kabuto\RenderContext;
 
 final class ComponentTemplateComponent extends BaseComponent
 {
+    public string $name = '';
+
     /**
      * Renders this component through its template file.
      */

@@ -46,9 +46,15 @@ final class ComponentTemplateTest extends TestCase
             'component-template-card' => ComponentTemplateCardComponent::class,
         ])), loader: new TemplateLoader(__DIR__ . '/Fixtures/templates'));
 
-        self::assertSame("<article>Alice in R&amp;D</article>\n", $engine->render('<k-template-card name="Alice" />', context: new RenderContext([
-            'place' => 'R&D',
-        ])));
+        self::assertSame("<article>Alice in R&amp;D</article>\n", $engine->render(
+            '<k-template-card :name="$name" />',
+            [
+                'name' => 'Alice',
+            ],
+            context: new RenderContext([
+                'place' => 'R&D',
+            ]),
+        ));
     }
 
     /**

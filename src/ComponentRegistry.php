@@ -21,17 +21,25 @@ final class ComponentRegistry
     /**
      * Resolves a registered component name into a component instance.
      *
-     * @param array<string, mixed> $props
+     * @param array<string, mixed>|ComponentInvocation $props
      * @param array<string, Slot> $slots
      */
     public function resolve(
         string $name,
-        array $props = [],
+        array|ComponentInvocation $props = [],
         ?Slot $slot = null,
         array $slots = [],
         ?TemplateEngine $templateEngine = null,
-        ?AttributeBag $attributes = null,
     ): Component {
+        $attributes = null;
+
+        if ($props instanceof ComponentInvocation) {
+            $attributes = $props->attributes();
+            $slot = $props->slot();
+            $slots = $props->slots();
+            $props = $props->props();
+        }
+
         if (!array_key_exists($name, $this->definitions)) {
             if ($templateEngine !== null) {
                 return new TemplateOnlyComponent(
