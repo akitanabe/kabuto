@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
+use ReflectionClass;
+use ReflectionProperty;
 use RuntimeException;
 
 abstract class BaseComponent implements Component
@@ -13,13 +15,36 @@ abstract class BaseComponent implements Component
      *
      * @param array<string, mixed> $props
      * @param array<string, Slot> $slots
+     * @param array<string, mixed>|AttributeBag $attributes
      */
     public function __construct(
         protected array $props = [],
         protected ?Slot $slot = null,
         protected array $slots = [],
         private ?TemplateEngine $templateEngine = null,
+        private array|AttributeBag $attributes = [],
     ) {}
+
+    /**
+     * Returns public non-static properties accepted as dynamic props.
+     *
+     * @return list<string>
+     */
+    public static function acceptsProps(): array
+    {
+        $properties = [];
+        $class = new ReflectionClass(static::class);
+
+        foreach ($class->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isStatic()) {
+                continue;
+            }
+
+            $properties[] = $property->getName();
+        }
+
+        return $properties;
+    }
 
     /**
      * Returns a prop value or the provided default when absent.
@@ -27,6 +52,26 @@ abstract class BaseComponent implements Component
     protected function prop(string $name, mixed $default = null): mixed
     {
         return $this->props[$name] ?? $default;
+    }
+
+    /**
+     * Returns a normal attribute value or the provided default when absent.
+     */
+    protected function attribute(string $name, mixed $default = null): mixed
+    {
+        return $this->attributes()->get($name, $default);
+    }
+
+    /**
+     * Returns normal component attributes separately from props.
+     */
+    protected function attributes(): AttributeBag
+    {
+        if ($this->attributes instanceof AttributeBag) {
+            return $this->attributes;
+        }
+
+        return new AttributeBag($this->attributes);
     }
 
     /**

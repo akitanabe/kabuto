@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kabuto\Tests;
 
 use InvalidArgumentException;
+use Kabuto\AttributeBag;
 use Kabuto\BaseComponent;
 use Kabuto\Component;
 use Kabuto\Escaper;
@@ -138,5 +139,72 @@ final class RuntimeTest extends TestCase
         };
 
         self::assertSame('hello', $component->render(new RenderContext(['message' => 'hello'])));
+    }
+
+    /**
+     * Confirms that attribute bags render escaped HTML attributes.
+     */
+    #[Test]
+    public function attributeBagRendersEscapedHtmlAttributes(): void
+    {
+        $attributes = new AttributeBag([
+            'id' => 'save & close',
+            'disabled' => true,
+            'hidden' => false,
+            'aria-label' => '"Save"',
+            'data-state' => 'ready',
+            'hx-post' => '/save?draft=1&next=2',
+        ]);
+
+        self::assertSame(
+            ' id="save &amp; close" disabled aria-label="&quot;Save&quot;" data-state="ready" hx-post="/save?draft=1&amp;next=2"',
+            $attributes->toHtml(),
+        );
+    }
+
+    /**
+     * Confirms that class values merge from defaults to caller values.
+     */
+    #[Test]
+    public function attributeBagMergesClassesInOrder(): void
+    {
+        $attributes = new AttributeBag([
+            'class' => 'btn',
+            'type' => 'button',
+        ]);
+
+        $merged = $attributes->merge([
+            'class' => ['primary' => true, 'hidden' => false, 'rounded'],
+            'type' => 'submit',
+        ])->class('active');
+
+        self::assertSame('btn primary rounded active', $merged->get('class'));
+        self::assertSame('submit', $merged->get('type'));
+        self::assertSame(['class' => 'btn', 'type' => 'button'], $attributes->all());
+    }
+
+    /**
+     * Confirms that public properties define accepted dynamic props by default.
+     */
+    #[Test]
+    public function baseComponentAcceptsPublicPropertiesAsProps(): void
+    {
+        $component = new class extends BaseComponent {
+            public string $name = '';
+
+            public static int $ignored = 0;
+
+            protected string $alsoIgnored = '';
+
+            /**
+             * Renders nothing for this prop-contract test.
+             */
+            public function render(RenderContext $context): string
+            {
+                return '';
+            }
+        };
+
+        self::assertSame(['name'], $component::acceptsProps());
     }
 }

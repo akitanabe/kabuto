@@ -8,6 +8,10 @@ use InvalidArgumentException;
 
 final class Provider extends BaseComponent
 {
+    public string $name = '';
+
+    public mixed $value = null;
+
     /**
      * Renders the default slot with one context value provided.
      */

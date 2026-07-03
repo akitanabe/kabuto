@@ -105,32 +105,38 @@ final class TemplateCompiler
      */
     private function compileComponent(ComponentNode $node): string
     {
+        $attributeEntries = array_map(
+            fn(AttributeNode $attribute): string => (
+                $this->string($attribute->name()) . ' => ' . $this->string($attribute->value())
+            ),
+            $node->attributes(),
+        );
+
         return (
             '$renderer->component('
             . $this->string($node->name())
+            . ', new \\Kabuto\\ComponentInvocation('
+            . $this->compileProps($node->props())
             . ', '
-            . $this->compileProps($node->attributes(), $node->props())
+            . 'new \\Kabuto\\AttributeBag(['
+            . implode(', ', $attributeEntries)
+            . '])'
             . ', '
             . $this->compileSlot($node->children())
             . ', '
             . $this->compileNamedSlots($node->slots())
-            . ', $context)'
+            . ', $context))'
         );
     }
 
     /**
-     * Compiles static attributes and dynamic props into a component props array.
+     * Compiles dynamic props into a component props array.
      *
-     * @param list<AttributeNode> $attributes
      * @param list<PropNode> $props
      */
-    private function compileProps(array $attributes, array $props): string
+    private function compileProps(array $props): string
     {
         $entries = [];
-
-        foreach ($attributes as $attribute) {
-            $entries[] = $this->string($attribute->name()) . ' => ' . $this->string($attribute->value());
-        }
 
         foreach ($props as $prop) {
             $entries[] = $this->string($prop->name()) . ' => ' . $this->compileDataLookup($prop->expression());

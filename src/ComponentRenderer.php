@@ -56,18 +56,21 @@ final class ComponentRenderer
     /**
      * Resolves a component by name and renders it synchronously.
      *
-     * @param array<string, mixed> $props
+     * @param array<string, mixed>|ComponentInvocation $props
      * @param array<string, Slot> $slots
      */
     public function component(
         string $name,
-        array $props = [],
+        array|ComponentInvocation $props = [],
         ?Slot $slot = null,
         array $slots = [],
         ?RenderContext $context = null,
     ): string {
-        $component = $this->registry->resolve($name, $props, $slot, $slots, $this->templateEngine);
+        $invocation = $props instanceof ComponentInvocation
+            ? $props
+            : new ComponentInvocation($props, slot: $slot, slots: $slots, context: $context);
+        $component = $this->registry->resolve($name, $invocation, templateEngine: $this->templateEngine);
 
-        return $component->render($context ?? new RenderContext());
+        return $component->render($invocation->context() ?? new RenderContext());
     }
 }
