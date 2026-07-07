@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto\Parser;
 
+use Kabuto\Diagnostics\SourceLocation;
 use RuntimeException;
 use Throwable;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kabuto\Parser;
+namespace Kabuto\Diagnostics;
 
 final readonly class SourceLocation
 {

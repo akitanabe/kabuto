@@ -6,7 +6,7 @@ namespace Kabuto\Tests;
 
 use Kabuto\Ast\TextNode;
 use Kabuto\Compiler\CompileException;
-use Kabuto\Parser\SourceLocation;
+use Kabuto\Diagnostics\SourceLocation;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
