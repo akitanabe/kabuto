@@ -25,7 +25,7 @@ final readonly class ComponentParser
     {
         $componentName = $this->componentPrefix->removeFrom($tag->name);
         if ($componentName === '') {
-            throw ParseException::at('Component name must not be empty', 0);
+            throw ParseException::at('Component name must not be empty', $tag->startOffset);
         }
 
         if ($tag->selfClosing) {
@@ -53,15 +53,15 @@ final readonly class ComponentParser
     public function parseNamedSlot(OpenTag $tag): NamedSlotNode
     {
         if ($tag->props !== []) {
-            throw ParseException::at('Dynamic props are not supported on named slots', 0);
+            throw ParseException::at('Dynamic props are not supported on named slots', $tag->startOffset);
         }
 
         if ($tag->selfClosing) {
-            throw ParseException::at('Named slots must have content', 0);
+            throw ParseException::at('Named slots must have content', $tag->startOffset);
         }
 
         if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name') {
-            throw ParseException::at('Named slots require a name attribute', 0);
+            throw ParseException::at('Named slots require a name attribute', $tag->startOffset);
         }
 
         return new NamedSlotNode(
@@ -76,11 +76,11 @@ final readonly class ComponentParser
     public function parseSlotOutlet(OpenTag $tag): SlotOutletNode
     {
         if ($tag->props !== []) {
-            throw ParseException::at('Dynamic props are not supported on slot outlets', 0);
+            throw ParseException::at('Dynamic props are not supported on slot outlets', $tag->startOffset);
         }
 
         if (!$tag->selfClosing) {
-            throw ParseException::at('Slot outlets must be self-closing', 0);
+            throw ParseException::at('Slot outlets must be self-closing', $tag->startOffset);
         }
 
         if ($tag->attributes === []) {
@@ -88,7 +88,7 @@ final readonly class ComponentParser
         }
 
         if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name') {
-            throw ParseException::at('Slot outlets only support a name attribute', 0);
+            throw ParseException::at('Slot outlets only support a name attribute', $tag->startOffset);
         }
 
         return new SlotOutletNode($tag->attributes[0]->value());

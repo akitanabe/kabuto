@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kabuto;
 
 use Kabuto\Compiler\CompiledTemplate;
+use Kabuto\Compiler\CompileException;
 use Kabuto\Compiler\TemplateCompiler;
 use Kabuto\Compiler\TemplateRendererCompiler;
+use Kabuto\Parser\ParseException;
 use Kabuto\Parser\Parser;
 use RuntimeException;
 
@@ -59,7 +61,15 @@ final class TemplateEngine
             throw new RuntimeException('TemplateLoader is not configured.');
         }
 
-        return $this->render($this->loader->load($path), $data, $context, $slot, $slots);
+        try {
+            return $this->render($this->loader->load($path), $data, $context, $slot, $slots);
+        } catch (ParseException|CompileException $exception) {
+            if ($exception->hasTemplateName()) {
+                throw $exception;
+            }
+
+            throw $exception->withTemplateName($path);
+        }
     }
 
     /**

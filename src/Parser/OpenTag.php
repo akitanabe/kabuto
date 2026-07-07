@@ -20,5 +20,6 @@ final readonly class OpenTag
         public array $attributes,
         public array $props,
         public bool $selfClosing,
+        public int $startOffset,
     ) {}
 }

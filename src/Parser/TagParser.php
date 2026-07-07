@@ -21,11 +21,12 @@ final readonly class TagParser
      */
     public function readOpenTag(): OpenTag
     {
+        $startOffset = $this->cursor->offset();
         $this->cursor->expect('<');
         $name = $this->cursor->readName();
         [$attributes, $props, $selfClosing] = $this->readAttributes();
 
-        return new OpenTag($name, $attributes, $props, $selfClosing);
+        return new OpenTag($name, $attributes, $props, $selfClosing, $startOffset);
     }
 
     /**
