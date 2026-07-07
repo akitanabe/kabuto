@@ -22,4 +22,16 @@ final class ParserDiagnosticsTest extends TestCase
 
         new Parser()->parse("prefix\nあ<");
     }
+
+    /**
+     * Confirms that directive pre-scan errors report the matched source position.
+     */
+    #[Test]
+    public function parserReportsLineAndByteColumnForDirectiveErrors(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Directives are not supported at line 2, column 3.');
+
+        new Parser()->parse("ok\n  @if (\$ok)");
+    }
 }
