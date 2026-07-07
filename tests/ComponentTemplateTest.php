@@ -6,6 +6,7 @@ namespace Kabuto\Tests;
 
 use Kabuto\ComponentRegistry;
 use Kabuto\ComponentRenderer;
+use Kabuto\Parser\ParseException;
 use Kabuto\RenderContext;
 use Kabuto\TemplateEngine;
 use Kabuto\TemplateLoader;
@@ -13,6 +14,7 @@ use Kabuto\TemplateNotFoundException;
 use Kabuto\Tests\Fixtures\ComponentTemplateCardComponent;
 use Kabuto\Tests\Fixtures\ComponentTemplateComponent;
 use Kabuto\Tests\Fixtures\ComponentTemplateLayoutComponent;
+use Kabuto\Tests\Fixtures\NestedBrokenTemplateComponent;
 use Kabuto\Tests\Fixtures\TemplateUserCardComponent;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +35,39 @@ final class ComponentTemplateTest extends TestCase
         self::assertSame("<article>Alice</article>\n", $engine->renderFile('user-card.kabuto', [
             'user' => 'Alice',
         ]));
+    }
+
+    /**
+     * Confirms that file parse errors report the root-relative template path.
+     */
+    #[Test]
+    public function renderFileReportsTemplatePathLineAndColumnForParseErrors(): void
+    {
+        $engine = new TemplateEngine(
+            new ComponentRenderer(new ComponentRegistry()),
+            loader: new TemplateLoader(__DIR__ . '/Fixtures/templates'),
+        );
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Expected name at broken-render.kbt:2:2.');
+
+        $engine->renderFile('broken-render.kbt');
+    }
+
+    /**
+     * Confirms that an inner renderFile parse error keeps its own template path.
+     */
+    #[Test]
+    public function nestedRenderFileKeepsInnerTemplatePathForParseErrors(): void
+    {
+        $engine = new TemplateEngine(new ComponentRenderer(new ComponentRegistry([
+            'nested-broken-template' => NestedBrokenTemplateComponent::class,
+        ])), loader: new TemplateLoader(__DIR__ . '/Fixtures/templates'));
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Expected name at nested-broken.kbt:2:2.');
+
+        $engine->renderFile('outer-broken-wrapper.kbt');
     }
 
     /**

@@ -25,10 +25,14 @@ final class Parser
      */
     public function parse(string $source): array
     {
-        if (preg_match('/@(if|foreach|endif|endforeach)\b/', $source) === 1) {
-            throw ParseException::at('Directives are not supported', 0);
-        }
+        try {
+            if (preg_match('/@(if|foreach|endif|endforeach)\b/', $source, $matches, flags: PREG_OFFSET_CAPTURE) === 1) {
+                throw ParseException::at('Directives are not supported', $matches[0][1]);
+            }
 
-        return new TemplateParser(new SourceCursor($source), $this->componentPrefix)->parse();
+            return new TemplateParser(new SourceCursor($source), $this->componentPrefix)->parse();
+        } catch (ParseException $exception) {
+            throw $exception->withSource($source);
+        }
     }
 }
