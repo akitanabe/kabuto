@@ -9,6 +9,7 @@ use Kabuto\ComponentRegistry;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
 use Kabuto\TemplateEngine;
+use Kabuto\Tests\Fixtures\AttributePanelComponent;
 use Kabuto\Tests\Fixtures\TemplateAttributeProbeComponent;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +36,20 @@ final class ComponentAttributeRenderingTest extends TestCase
 
         self::assertSame($expected, $engine->render($template, $data));
         self::assertSame($expected, $this->renderCompiledPhp($engine, $renderer, $template, $data));
+    }
+
+    #[Test]
+    public function engineSerializesBareAndEmptyComponentAttributesAcrossCompilationPaths(): void
+    {
+        $renderer = new ComponentRenderer(new ComponentRegistry([
+            'panel' => AttributePanelComponent::class,
+        ]));
+        $engine = new TemplateEngine($renderer);
+        $template = '<k-panel required disabled="" hidden="" class="" data-state="" title="Save & close" />';
+        $expected = '<section class="panel" required disabled hidden data-state="" title="Save &amp; close">missing|no-prop|ignored</section>';
+
+        self::assertSame($expected, $engine->render($template));
+        self::assertSame($expected, $this->renderCompiledPhp($engine, $renderer, $template, []));
     }
 
     /**

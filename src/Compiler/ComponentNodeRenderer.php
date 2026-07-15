@@ -68,7 +68,7 @@ final class ComponentNodeRenderer
         $values = [];
 
         foreach ($attributes as $attribute) {
-            $values[$attribute->name()] = $attribute->value();
+            $values[$attribute->name()] = $attribute->isBare() ? true : $attribute->value();
         }
 
         return new AttributeBag($values);

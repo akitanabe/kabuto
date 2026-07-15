@@ -12,12 +12,15 @@ use Kabuto\Escaper;
 use Kabuto\Kabuto;
 use Kabuto\RenderContext;
 use Kabuto\Slot;
+use Kabuto\Tests\Concerns\HtmlAttributeBagConformanceTestCases;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use UnexpectedValueException;
 
 final class RuntimeTest extends TestCase
 {
+    use HtmlAttributeBagConformanceTestCases;
+
     /**
      * Confirms that the engine renders a PHP component synchronously.
      */

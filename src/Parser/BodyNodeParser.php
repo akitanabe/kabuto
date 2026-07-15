@@ -6,6 +6,8 @@ namespace Kabuto\Parser;
 
 use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\Node;
+use Kabuto\Ast\TextNode;
+use Kabuto\HtmlSyntax;
 
 final readonly class BodyNodeParser
 {
@@ -18,6 +20,7 @@ final readonly class BodyNodeParser
         private SourceCursor $cursor,
         private TemplateParser $templateParser,
         private ComponentPrefix $componentPrefix,
+        private HtmlLiteralReader $htmlLiteralReader,
     ) {
         $this->componentParser = new ComponentParser($templateParser, $componentPrefix);
     }
@@ -67,8 +70,16 @@ final readonly class BodyNodeParser
             throw ParseException::at('Dynamic props are only supported on components', $this->cursor->offset());
         }
 
-        if ($tag->selfClosing) {
+        if ($tag->selfClosing || HtmlSyntax::isVoidElement($tag->name)) {
             return new ElementNode($tag->name, $tag->attributes);
+        }
+
+        if (HtmlSyntax::isRawTextElement($tag->name)) {
+            return new ElementNode(
+                $tag->name,
+                $tag->attributes,
+                [new TextNode($this->htmlLiteralReader->readRawTextUntilClosingTag($tag->name))],
+            );
         }
 
         return new ElementNode($tag->name, $tag->attributes, $this->templateParser->parseChildren($tag->name));

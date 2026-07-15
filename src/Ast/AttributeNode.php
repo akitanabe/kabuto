@@ -6,12 +6,10 @@ namespace Kabuto\Ast;
 
 final readonly class AttributeNode
 {
-    /**
-     * Stores a static attribute name and value.
-     */
     public function __construct(
         private string $name,
         private string $value,
+        private bool $bare = false,
     ) {}
 
     /**
@@ -28,5 +26,13 @@ final readonly class AttributeNode
     public function value(): string
     {
         return $this->value;
+    }
+
+    /**
+     * Returns whether the attribute was written without a value.
+     */
+    public function isBare(): bool
+    {
+        return $this->bare;
     }
 }
