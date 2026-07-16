@@ -104,13 +104,11 @@ final readonly class AttributeBag
     private function renderAttribute(string|int $name, mixed $value): string
     {
         $name = (string) $name;
-        $value = $name === 'class' ? $this->normalizeClass($value) : $value;
+        if ($name === 'class' && !is_bool($value) && $value !== null) {
+            $value = $this->normalizeClass($value);
+        }
 
-        return match (true) {
-            $value === false, $value === null, $value === '' => '',
-            $value === true => ' ' . $name,
-            default => ' ' . $name . '="' . Escaper::escape($value) . '"',
-        };
+        return HtmlAttributeRenderer::render($name, $value);
     }
 
     /**

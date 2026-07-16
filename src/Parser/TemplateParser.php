@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto\Parser;
 
+use Closure;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\TextNode;
 
@@ -13,6 +14,10 @@ final class TemplateParser
 
     private BodyNodeParser $bodyNodeParser;
 
+    private HtmlLiteralReader $htmlLiteralReader;
+
+    private TemplateLiteralParser $templateLiteralParser;
+
     /**
      * Stores parser collaborators for a single source cursor.
      */
@@ -20,8 +25,10 @@ final class TemplateParser
         private readonly SourceCursor $cursor,
         ComponentPrefix $componentPrefix,
     ) {
+        $this->htmlLiteralReader = new HtmlLiteralReader($cursor);
         $this->tagParser = new TagParser($cursor);
-        $this->bodyNodeParser = new BodyNodeParser($cursor, $this, $componentPrefix);
+        $this->bodyNodeParser = new BodyNodeParser($cursor, $this, $componentPrefix, $this->htmlLiteralReader);
+        $this->templateLiteralParser = new TemplateLiteralParser($cursor, $this->htmlLiteralReader);
     }
 
     /**
@@ -60,7 +67,7 @@ final class TemplateParser
                 return $nodes;
             }
 
-            $nodes[] = $this->parseTopLevelNode();
+            $nodes[] = $this->parseNodeWithoutDoctype($this->bodyNodeParser->parseTopLevelTag(...));
         }
 
         throw ParseException::at('Missing closing tag ' . $closingTag, $this->cursor->offset());
@@ -82,36 +89,50 @@ final class TemplateParser
                 return $nodes;
             }
 
-            $nodes[] = $this->parseComponentChild();
+            $nodes[] = $this->parseNodeWithoutDoctype($this->bodyNodeParser->parseComponentTag(...));
         }
 
         throw ParseException::at('Missing closing tag ' . $closingTag, $this->cursor->offset());
     }
 
     /**
-     * Parses one node where named slots are not accepted.
+     * Parses one top-level node where an HTML doctype is accepted.
      */
     private function parseTopLevelNode(): Node
     {
-        if ($this->cursor->peek() !== '<') {
-            return new TextNode($this->cursor->readTextUntilTag());
+        $literalNode = $this->templateLiteralParser->parse();
+        if ($literalNode !== null) {
+            return $literalNode;
+        }
+
+        if ($this->cursor->startsWith('<!')) {
+            return new TextNode($this->htmlLiteralReader->readDoctype());
         }
 
         $tag = $this->tagParser->readOpenTag();
+
         return $this->bodyNodeParser->parseTopLevelTag($tag);
     }
 
     /**
-     * Parses one component child where configured slot tags are named slots.
+     * Parses a child node while rejecting nested doctype declarations.
+     *
+     * @param Closure(OpenTag): Node $parseTag
      */
-    private function parseComponentChild(): Node
+    private function parseNodeWithoutDoctype(Closure $parseTag): Node
     {
-        if ($this->cursor->peek() !== '<') {
-            return new TextNode($this->cursor->readTextUntilTag());
+        $literalNode = $this->templateLiteralParser->parse();
+        if ($literalNode !== null) {
+            return $literalNode;
+        }
+
+        if ($this->cursor->startsWith('<!')) {
+            throw ParseException::at('DOCTYPE is only allowed at top level', $this->cursor->offset());
         }
 
         $tag = $this->tagParser->readOpenTag();
-        return $this->bodyNodeParser->parseComponentTag($tag);
+
+        return $parseTag($tag);
     }
 
     /**

@@ -11,12 +11,17 @@ use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
 use Kabuto\Parser\ParseException;
 use Kabuto\Parser\Parser;
+use Kabuto\Tests\Concerns\HtmlParserConformanceTestCases;
+use Kabuto\Tests\Concerns\HtmlParserRegressionTestCases;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class ParserTest extends TestCase
 {
+    use HtmlParserConformanceTestCases;
+    use HtmlParserRegressionTestCases;
+
     /**
      * Confirms that text and normal HTML elements are parsed into AST nodes.
      */

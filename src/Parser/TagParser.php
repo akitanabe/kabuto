@@ -54,21 +54,21 @@ final readonly class TagParser
                 return [$attributes, $props, false];
             }
 
-            [$name, $value, $isDynamic] = $this->readAttribute();
+            [$name, $value, $isDynamic, $isBare] = $this->readAttribute();
 
             if ($isDynamic) {
                 $props[] = new PropNode($name, $this->validateDynamicExpression($value));
                 continue;
             }
 
-            $attributes[] = new AttributeNode($name, $value);
+            $attributes[] = new AttributeNode($name, $value, $isBare);
         }
     }
 
     /**
-     * Parses one quoted attribute assignment.
+     * Parses one static bare attribute or quoted attribute assignment.
      *
-     * @return array{0: string, 1: string, 2: bool}
+     * @return array{0: string, 1: string, 2: bool, 3: bool}
      */
     private function readAttribute(): array
     {
@@ -80,10 +80,19 @@ final readonly class TagParser
 
         $name = $this->cursor->readName();
         $this->cursor->skipWhitespace();
+
+        if (!$this->cursor->startsWith('=')) {
+            if ($isDynamic) {
+                $this->cursor->expect('=');
+            }
+
+            return [$name, '', false, true];
+        }
+
         $this->cursor->expect('=');
         $this->cursor->skipWhitespace();
 
-        return [$name, $this->cursor->readQuotedValue(), $isDynamic];
+        return [$name, $this->cursor->readQuotedValue(), $isDynamic, false];
     }
 
     /**

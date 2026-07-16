@@ -11,6 +11,8 @@ use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
 use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
+use Kabuto\HtmlAttributeRenderer;
+use Kabuto\HtmlSyntax;
 
 final class TemplateCompiler
 {
@@ -81,12 +83,7 @@ final class TemplateCompiler
         $openTag = '<' . $node->name();
 
         foreach ($node->attributes() as $attribute) {
-            $openTag .=
-                ' '
-                . $attribute->name()
-                . '="'
-                . htmlspecialchars($attribute->value(), ENT_QUOTES | ENT_SUBSTITUTE, encoding: 'UTF-8')
-                . '"';
+            $openTag .= HtmlAttributeRenderer::renderStatic($attribute);
         }
 
         $openTag .= '>';
@@ -95,8 +92,7 @@ final class TemplateCompiler
             $this->string($openTag)
             . ' . '
             . $this->compileNodes($node->children())
-            . ' . '
-            . $this->string('</' . $node->name() . '>')
+            . (HtmlSyntax::isVoidElement($node->name()) ? '' : ' . ' . $this->string('</' . $node->name() . '>'))
         );
     }
 
@@ -107,7 +103,9 @@ final class TemplateCompiler
     {
         $attributeEntries = array_map(
             fn(AttributeNode $attribute): string => (
-                $this->string($attribute->name()) . ' => ' . $this->string($attribute->value())
+                $this->string($attribute->name())
+                . ' => '
+                . ($attribute->isBare() ? 'true' : $this->string($attribute->value()))
             ),
             $node->attributes(),
         );

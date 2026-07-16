@@ -60,7 +60,7 @@ final readonly class ComponentParser
             throw ParseException::at('Named slots must have content', $tag->startOffset);
         }
 
-        if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name') {
+        if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name' || $tag->attributes[0]->isBare()) {
             throw ParseException::at('Named slots require a name attribute', $tag->startOffset);
         }
 
@@ -87,7 +87,7 @@ final readonly class ComponentParser
             return new SlotOutletNode(null);
         }
 
-        if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name') {
+        if (count($tag->attributes) !== 1 || $tag->attributes[0]->name() !== 'name' || $tag->attributes[0]->isBare()) {
             throw ParseException::at('Slot outlets only support a name attribute', $tag->startOffset);
         }
 
