@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
+use InvalidArgumentException;
 use ReflectionClass;
 use ReflectionProperty;
 use RuntimeException;
@@ -93,10 +94,20 @@ abstract class BaseComponent implements Component
      */
     protected function view(string $path, array $data = [], ?RenderContext $context = null): string
     {
+        if (array_key_exists('attributes', $data)) {
+            throw new InvalidArgumentException('Component view data must not replace the reserved attributes binding.');
+        }
+
         if ($this->templateEngine === null) {
             throw new RuntimeException('TemplateEngine is not configured for component views.');
         }
 
-        return $this->templateEngine->renderFile($path, $data, $context, $this->slot, $this->slots);
+        return $this->templateEngine->renderFile(
+            $path,
+            $data + ['attributes' => $this->attributes()],
+            $context,
+            $this->slot,
+            $this->slots,
+        );
     }
 }

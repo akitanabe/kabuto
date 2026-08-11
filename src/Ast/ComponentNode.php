@@ -9,14 +9,14 @@ final readonly class ComponentNode implements Node
     /**
      * Stores a component invocation with props and slot content.
      *
-     * @param list<AttributeNode> $attributes
+     * @param list<AttributeNode|DynamicAttributeNode> $callerAttributes
      * @param list<PropNode> $props
      * @param list<Node> $children
      * @param array<string, list<Node>> $slots
      */
     public function __construct(
         private string $name,
-        private array $attributes = [],
+        private array $callerAttributes = [],
         private array $props = [],
         private array $children = [],
         private array $slots = [],
@@ -45,7 +45,10 @@ final readonly class ComponentNode implements Node
      */
     public function attributes(): array
     {
-        return $this->attributes;
+        return array_values(array_filter(
+            $this->callerAttributes,
+            static fn(AttributeNode|DynamicAttributeNode $attribute): bool => $attribute instanceof AttributeNode,
+        ));
     }
 
     /**
@@ -56,6 +59,23 @@ final readonly class ComponentNode implements Node
     public function props(): array
     {
         return $this->props;
+    }
+
+    /** @return list<DynamicAttributeNode> */
+    public function dynamicAttributes(): array
+    {
+        return array_values(array_filter(
+            $this->callerAttributes,
+            static fn(AttributeNode|DynamicAttributeNode $attribute): bool => (
+                $attribute instanceof DynamicAttributeNode
+            ),
+        ));
+    }
+
+    /** @return list<AttributeNode|DynamicAttributeNode> */
+    public function callerAttributes(): array
+    {
+        return $this->callerAttributes;
     }
 
     /**

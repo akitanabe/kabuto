@@ -40,8 +40,8 @@ final class TemplateParser
     {
         $nodes = [];
 
-        while (!$this->cursor->isEnd()) {
-            if ($this->cursor->startsWith('</')) {
+        while ($this->templateLiteralParser->hasInput()) {
+            if ($this->templateLiteralParser->isAtClosingTag()) {
                 throw ParseException::at('Unexpected closing tag', $this->cursor->offset());
             }
 
@@ -60,8 +60,8 @@ final class TemplateParser
     {
         $nodes = [];
 
-        while (!$this->cursor->isEnd()) {
-            if ($this->cursor->startsWith('</')) {
+        while ($this->templateLiteralParser->hasInput()) {
+            if ($this->templateLiteralParser->isAtClosingTag()) {
                 $this->parseClosingTag($closingTag);
 
                 return $nodes;
@@ -82,8 +82,8 @@ final class TemplateParser
     {
         $nodes = [];
 
-        while (!$this->cursor->isEnd()) {
-            if ($this->cursor->startsWith('</')) {
+        while ($this->templateLiteralParser->hasInput()) {
+            if ($this->templateLiteralParser->isAtClosingTag()) {
                 $this->parseClosingTag($closingTag);
 
                 return $nodes;

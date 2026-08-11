@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Kabuto\Parser;
 
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
-use Kabuto\Ast\TextNode;
 use Kabuto\HtmlSyntax;
+use Kabuto\OutputContext;
+use Kabuto\OutputContextPolicy;
 
 final readonly class BodyNodeParser
 {
     private ComponentParser $componentParser;
+
+    private ElementAttributeParser $elementAttributeParser;
 
     /**
      * Stores collaborators used to convert open tags into body nodes.
@@ -21,8 +25,10 @@ final readonly class BodyNodeParser
         private TemplateParser $templateParser,
         private ComponentPrefix $componentPrefix,
         private HtmlLiteralReader $htmlLiteralReader,
+        private TextInterpolationParser $interpolationParser = new TextInterpolationParser(),
     ) {
         $this->componentParser = new ComponentParser($templateParser, $componentPrefix);
+        $this->elementAttributeParser = new ElementAttributeParser($cursor, $componentPrefix);
     }
 
     /**
@@ -66,22 +72,43 @@ final readonly class BodyNodeParser
             return $this->componentParser->parseComponent($tag);
         }
 
-        if ($tag->props !== []) {
-            throw ParseException::at('Dynamic props are only supported on components', $this->cursor->offset());
-        }
+        $dynamicAttributes = $this->elementAttributeParser->dynamic($tag);
+        [$staticAttributes, $spread] = $this->elementAttributeParser->spread($tag);
 
         if ($tag->selfClosing || HtmlSyntax::isVoidElement($tag->name)) {
-            return new ElementNode($tag->name, $tag->attributes);
-        }
-
-        if (HtmlSyntax::isRawTextElement($tag->name)) {
             return new ElementNode(
                 $tag->name,
-                $tag->attributes,
-                [new TextNode($this->htmlLiteralReader->readRawTextUntilClosingTag($tag->name))],
+                $staticAttributes,
+                dynamicAttributes: $dynamicAttributes,
+                spread: $spread,
             );
         }
 
-        return new ElementNode($tag->name, $tag->attributes, $this->templateParser->parseChildren($tag->name));
+        if (HtmlSyntax::isRawTextElement($tag->name)) {
+            $contentOffset = $this->cursor->offset();
+            $content = $this->htmlLiteralReader->readRawTextUntilClosingTag($tag->name);
+            $children = $this->interpolationParser->parse($content, $contentOffset, $this->cursor->source());
+
+            if (OutputContextPolicy::text($tag->name) === OutputContext::Forbidden) {
+                foreach ($children as $child) {
+                    if ($child instanceof InterpolationNode) {
+                        throw ParseException::at(
+                            'Dynamic output is forbidden in ' . strtolower($tag->name) . ' content',
+                            $child->expression()->offset(),
+                        );
+                    }
+                }
+            }
+
+            return new ElementNode($tag->name, $staticAttributes, $children, $dynamicAttributes, $spread);
+        }
+
+        return new ElementNode(
+            $tag->name,
+            $staticAttributes,
+            $this->templateParser->parseChildren($tag->name),
+            $dynamicAttributes,
+            $spread,
+        );
     }
 }

@@ -10,13 +10,17 @@ use Kabuto\Ast\SlotOutletNode;
 
 final readonly class ComponentParser
 {
+    private ComponentInputParser $inputParser;
+
     /**
      * Stores the template parser used to parse component bodies.
      */
     public function __construct(
         private TemplateParser $templateParser,
         private ComponentPrefix $componentPrefix,
-    ) {}
+    ) {
+        $this->inputParser = new ComponentInputParser();
+    }
 
     /**
      * Parses a component body and separates default and named slot children.
@@ -28,8 +32,10 @@ final readonly class ComponentParser
             throw ParseException::at('Component name must not be empty', $tag->startOffset);
         }
 
+        [$props, $dynamicAttributes] = $this->inputParser->parse($tag);
+
         if ($tag->selfClosing) {
-            return new ComponentNode($componentName, $tag->attributes, $tag->props);
+            return new ComponentNode($componentName, [...$tag->attributes, ...$dynamicAttributes], $props);
         }
 
         $children = [];
@@ -44,7 +50,13 @@ final readonly class ComponentParser
             $children[] = $child;
         }
 
-        return new ComponentNode($componentName, $tag->attributes, $tag->props, $children, $slots);
+        return new ComponentNode(
+            $componentName,
+            [...$tag->attributes, ...$dynamicAttributes],
+            $props,
+            $children,
+            $slots,
+        );
     }
 
     /**

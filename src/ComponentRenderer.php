@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
+use Kabuto\Diagnostics\SourceLocation;
+
 final class ComponentRenderer
 {
+    private OutputRenderer $outputRenderer;
+
     /**
      * Stores the registry used for explicit component name resolution.
      *
@@ -16,7 +20,68 @@ final class ComponentRenderer
         private ?TemplateEngine $templateEngine = null,
         private ?Slot $slot = null,
         private array $slots = [],
-    ) {}
+        private ExpressionRuntime $expressionRuntime = new ExpressionRuntime(),
+    ) {
+        $this->outputRenderer = new OutputRenderer();
+    }
+
+    /**
+     * Evaluates one parsed expression in the given immutable render scope.
+     */
+    public function evaluate(Expression $expression, RenderScope $scope): mixed
+    {
+        return $this->expressionRuntime->evaluate($expression, $scope);
+    }
+
+    public function renderText(Expression $expression, RenderScope $scope): string
+    {
+        $location = $expression->location();
+        if ($location === null) {
+            throw RenderException::at('Dynamic output has no source location', $expression->offset());
+        }
+
+        return $this->outputRenderer->renderText($this->evaluate($expression, $scope), $location);
+    }
+
+    public function renderDynamicAttribute(
+        string $element,
+        string $name,
+        Expression $expression,
+        RenderScope $scope,
+    ): string {
+        $location = $expression->location();
+        if ($location === null) {
+            throw RenderException::at('Dynamic output has no source location', $expression->offset());
+        }
+
+        return $this->outputRenderer->renderDynamicAttribute(
+            $element,
+            $name,
+            $this->evaluate($expression, $scope),
+            $location,
+        );
+    }
+
+    public function renderAttributeBag(string $element, AttributeBag $attributes): string
+    {
+        return $attributes->toHtmlFor($element, $this->outputRenderer);
+    }
+
+    public function renderSpreadAttributes(
+        string $element,
+        AttributeBag $defaults,
+        mixed $incoming,
+        ?SourceLocation $location,
+    ): string {
+        if (!$incoming instanceof AttributeBag) {
+            $message = 'Attribute spread value must be an AttributeBag';
+            throw $location === null
+                ? RenderException::at($message, 0)
+                : RenderException::atLocation($message, $location);
+        }
+
+        return $this->renderAttributeBag($element, $defaults->merge($incoming));
+    }
 
     /**
      * Returns a renderer clone bound to the current template engine.

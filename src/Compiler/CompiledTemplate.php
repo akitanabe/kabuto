@@ -7,6 +7,7 @@ namespace Kabuto\Compiler;
 use Kabuto\Ast\Node;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
+use Kabuto\RenderScope;
 
 final class CompiledTemplate
 {
@@ -27,7 +28,7 @@ final class CompiledTemplate
      */
     public function render(array $data, RenderContext $context, ComponentRenderer $renderer): string
     {
-        return $this->nodeRenderer->renderNodes($this->nodes, $data, $context, $renderer);
+        return $this->nodeRenderer->renderNodes($this->nodes, RenderScope::root($data), $context, $renderer);
     }
 
     /**

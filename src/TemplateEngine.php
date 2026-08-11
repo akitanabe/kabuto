@@ -41,7 +41,11 @@ final class TemplateEngine
         $renderer = $this->compile($template);
         $runtimeRenderer = $this->renderer->withTemplateEngine($this)->withSlots($slot, $slots);
 
-        return $renderer($data, $context ?? new RenderContext(), $runtimeRenderer);
+        try {
+            return $renderer($data, $context ?? new RenderContext(), $runtimeRenderer);
+        } catch (RenderException $exception) {
+            throw $exception->withSource($template);
+        }
     }
 
     /**
@@ -63,7 +67,7 @@ final class TemplateEngine
 
         try {
             return $this->render($this->loader->load($path), $data, $context, $slot, $slots);
-        } catch (ParseException|CompileException $exception) {
+        } catch (ParseException|CompileException|RenderException $exception) {
             if ($exception->hasTemplateName()) {
                 throw $exception;
             }

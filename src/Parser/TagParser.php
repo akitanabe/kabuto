@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kabuto\Parser;
 
 use Kabuto\Ast\AttributeNode;
+use Kabuto\Ast\AttributeSourceLocations;
 use Kabuto\Ast\PropNode;
+use Kabuto\Diagnostics\SourceLocation;
 
 final readonly class TagParser
 {
@@ -14,6 +16,7 @@ final readonly class TagParser
      */
     public function __construct(
         private SourceCursor $cursor,
+        private ExpressionParser $expressionParser = new ExpressionParser(),
     ) {}
 
     /**
@@ -38,6 +41,7 @@ final readonly class TagParser
     {
         $attributes = [];
         $props = [];
+        $position = 0;
 
         while (true) {
             $this->cursor->skipWhitespace();
@@ -54,21 +58,34 @@ final readonly class TagParser
                 return [$attributes, $props, false];
             }
 
-            [$name, $value, $isDynamic, $isBare] = $this->readAttribute();
+            [$name, $value, $isDynamic, $isBare, $valueStartOffset, $nameStartOffset] = $this->readAttribute();
 
             if ($isDynamic) {
-                $props[] = new PropNode($name, $this->validateDynamicExpression($value));
+                $props[] = new PropNode(
+                    $name,
+                    $this->expressionParser->parse($value, $valueStartOffset, $this->cursor->source()),
+                    $position++,
+                );
                 continue;
             }
 
-            $attributes[] = new AttributeNode($name, $value, $isBare);
+            $attributes[] = new AttributeNode(
+                $name,
+                $value,
+                $isBare,
+                $position++,
+                new AttributeSourceLocations(
+                    SourceLocation::fromOffset($this->cursor->source(), $nameStartOffset),
+                    SourceLocation::fromOffset($this->cursor->source(), $valueStartOffset),
+                ),
+            );
         }
     }
 
     /**
      * Parses one static bare attribute or quoted attribute assignment.
      *
-     * @return array{0: string, 1: string, 2: bool, 3: bool}
+     * @return array{0: string, 1: string, 2: bool, 3: bool, 4: int, 5: int}
      */
     private function readAttribute(): array
     {
@@ -78,6 +95,7 @@ final readonly class TagParser
             $this->cursor->expect(':');
         }
 
+        $nameStartOffset = $this->cursor->offset();
         $name = $this->cursor->readName();
         $this->cursor->skipWhitespace();
 
@@ -86,24 +104,14 @@ final readonly class TagParser
                 $this->cursor->expect('=');
             }
 
-            return [$name, '', false, true];
+            return [$name, '', false, true, $this->cursor->offset(), $nameStartOffset];
         }
 
         $this->cursor->expect('=');
         $this->cursor->skipWhitespace();
 
-        return [$name, $this->cursor->readQuotedValue(), $isDynamic, false];
-    }
+        $quoted = $this->cursor->readQuotedValueWithOffset();
 
-    /**
-     * Validates the supported dynamic prop expression form.
-     */
-    private function validateDynamicExpression(string $expression): string
-    {
-        if (preg_match('/^\$[A-Za-z_][A-Za-z0-9_]*$/', $expression) !== 1) {
-            throw ParseException::at('Dynamic props only support simple variable expressions', $this->cursor->offset());
-        }
-
-        return $expression;
+        return [$name, $quoted['value'], $isDynamic, false, $quoted['startOffset'], $nameStartOffset];
     }
 }

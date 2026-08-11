@@ -6,12 +6,17 @@ namespace Kabuto\Compiler;
 
 use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ComponentNode;
+use Kabuto\Ast\DynamicAttributeNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
 use Kabuto\AttributeBag;
+use Kabuto\AttributeEntry;
+use Kabuto\AttributeProvenance;
+use Kabuto\ComponentInputValues;
 use Kabuto\ComponentInvocation;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
+use Kabuto\RenderScope;
 use Kabuto\Slot;
 
 final class ComponentNodeRenderer
@@ -19,69 +24,90 @@ final class ComponentNodeRenderer
     /**
      * Renders a component invocation through the runtime component renderer.
      *
-     * @param array<string, mixed> $data
      */
     public function render(
         ComponentNode $node,
-        array $data,
+        RenderScope $scope,
         RenderContext $context,
         ComponentRenderer $renderer,
         NodeRenderer $nodeRenderer,
     ): string {
+        $inputs = $this->inputs($node, $scope, $renderer);
+
         return $renderer->component(
             $node->name(),
             new ComponentInvocation(
-                $this->props($node->props(), $data),
-                $this->attributes($node->attributes()),
-                $this->slot($node->children(), $data, $renderer, $nodeRenderer),
-                $this->slots($node->slots(), $data, $renderer, $nodeRenderer),
+                $inputs->props,
+                $inputs->attributes,
+                $this->slot($node->children(), $scope, $renderer, $nodeRenderer),
+                $this->slots($node->slots(), $scope, $renderer, $nodeRenderer),
                 $context,
             ),
         );
     }
 
     /**
-     * Builds component props from dynamic render data.
-     *
-     * @param list<PropNode> $props
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
+     * Source order and single evaluation preserve observable filter side effects.
      */
-    private function props(array $props, array $data): array
+    private function inputs(ComponentNode $node, RenderScope $scope, ComponentRenderer $renderer): ComponentInputValues
     {
-        $values = [];
+        $inputs = [...$node->props(), ...$node->callerAttributes()];
+        usort(
+            $inputs,
+            static fn(
+                PropNode|AttributeNode|DynamicAttributeNode $left,
+                PropNode|AttributeNode|DynamicAttributeNode $right,
+            ): int => $left->position() <=> $right->position(),
+        );
+        $props = [];
+        $entries = [];
 
-        foreach ($props as $prop) {
-            $values[$prop->name()] = $data[substr($prop->expression(), offset: 1)] ?? null;
+        foreach ($inputs as $input) {
+            if ($input instanceof PropNode) {
+                $props[$input->name()] = $renderer->evaluate($input->expressionData(), $scope);
+                continue;
+            }
+
+            if ($input instanceof AttributeNode) {
+                $entries[] = new AttributeEntry(
+                    $input->name(),
+                    $input->isBare() ? true : $input->value(),
+                    AttributeProvenance::Static,
+                    $input->location(),
+                );
+                continue;
+            }
+
+            $location = $input->expression()->location();
+            if ($location === null) {
+                throw \Kabuto\RenderException::at(
+                    'Dynamic attribute has no source location',
+                    $input->expression()->offset(),
+                );
+            }
+
+            $entries[] = new AttributeEntry(
+                $input->name(),
+                $renderer->evaluate($input->expression(), $scope),
+                AttributeProvenance::Dynamic,
+                $location,
+            );
         }
 
-        return $values;
-    }
-
-    /**
-     * Builds a component attribute bag from static attributes.
-     *
-     * @param list<AttributeNode> $attributes
-     */
-    private function attributes(array $attributes): AttributeBag
-    {
-        $values = [];
-
-        foreach ($attributes as $attribute) {
-            $values[$attribute->name()] = $attribute->isBare() ? true : $attribute->value();
-        }
-
-        return new AttributeBag($values);
+        return new ComponentInputValues($props, AttributeBag::fromEntries($entries));
     }
 
     /**
      * Creates a runtime slot for child nodes.
      *
      * @param list<Node> $children
-     * @param array<string, mixed> $data
      */
-    private function slot(array $children, array $data, ComponentRenderer $renderer, NodeRenderer $nodeRenderer): ?Slot
-    {
+    private function slot(
+        array $children,
+        RenderScope $scope,
+        ComponentRenderer $renderer,
+        NodeRenderer $nodeRenderer,
+    ): ?Slot {
         if ($children === []) {
             return null;
         }
@@ -89,7 +115,7 @@ final class ComponentNodeRenderer
         return new Slot(
             static fn(RenderContext $context): string => $nodeRenderer->renderNodes(
                 $children,
-                $data,
+                $scope,
                 $context,
                 $renderer,
             ),
@@ -100,15 +126,18 @@ final class ComponentNodeRenderer
      * Creates runtime named slots keyed by slot name.
      *
      * @param array<string, list<Node>> $slots
-     * @param array<string, mixed> $data
      * @return array<string, Slot>
      */
-    private function slots(array $slots, array $data, ComponentRenderer $renderer, NodeRenderer $nodeRenderer): array
-    {
+    private function slots(
+        array $slots,
+        RenderScope $scope,
+        ComponentRenderer $renderer,
+        NodeRenderer $nodeRenderer,
+    ): array {
         $values = [];
 
         foreach ($slots as $name => $children) {
-            $slot = $this->slot($children, $data, $renderer, $nodeRenderer);
+            $slot = $this->slot($children, $scope, $renderer, $nodeRenderer);
             if ($slot !== null) {
                 $values[$name] = $slot;
             }

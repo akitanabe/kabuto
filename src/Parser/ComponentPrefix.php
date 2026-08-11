@@ -44,4 +44,9 @@ final readonly class ComponentPrefix
     {
         return $this->value . 'slot';
     }
+
+    public function attributesAttributeName(): string
+    {
+        return $this->value . 'attributes';
+    }
 }
