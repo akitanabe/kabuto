@@ -1,0 +1,1 @@
+<button class="fallback" k-attributes="$attributes">{{ $label }}</button>

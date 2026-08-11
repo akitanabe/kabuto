@@ -4,143 +4,109 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
-use Stringable;
+use RuntimeException;
 
 final readonly class AttributeBag
 {
-    /**
-     * Stores normalized component attributes.
-     *
-     * @param array<string, mixed> $attributes
-     */
-    public function __construct(
-        private array $attributes = [],
-    ) {}
+    /** @var array<string, AttributeEntry> */
+    private array $entries;
 
     /**
-     * Returns every stored attribute.
+     * Legacy array callers predate provenance metadata and remain trusted static input;
+     * dynamic values must use structured entries so output context is not lost.
      *
-     * @return array<string, mixed>
+     * @param array<array-key, mixed> $attributes
      */
+    public function __construct(array $attributes = [], bool $entryData = false)
+    {
+        $this->entries = $entryData
+            ? AttributeBagData::fromEntries($attributes)
+            : AttributeBagData::fromArray($attributes);
+    }
+
+    /** @param list<AttributeEntry> $entries */
+    public static function fromEntries(array $entries): self
+    {
+        return new self($entries, true);
+    }
+
+    /** @return array<string, mixed> */
     public function all(): array
     {
-        return $this->attributes;
+        return array_map(static fn(AttributeEntry $entry): mixed => $entry->value, $this->entries);
     }
 
-    /**
-     * Returns one attribute value or the provided default when absent.
-     */
+    public function entry(string $name): ?AttributeEntry
+    {
+        return $this->entries[strtolower($name)] ?? null;
+    }
+
     public function get(string $name, mixed $default = null): mixed
     {
-        return $this->attributes[$name] ?? $default;
-    }
+        $entry = $this->entry($name);
 
-    /**
-     * Checks whether an attribute is present.
-     */
-    public function has(string $name): bool
-    {
-        return array_key_exists($name, $this->attributes);
-    }
-
-    /**
-     * Returns a new bag merged with caller-provided attributes.
-     *
-     * @param array<string, mixed>|AttributeBag $attributes
-     */
-    public function merge(array|self $attributes): self
-    {
-        $incoming = $attributes instanceof self ? $attributes->all() : $attributes;
-        $merged = $this->attributes;
-
-        foreach ($incoming as $name => $value) {
-            if ($name === 'class') {
-                $merged[$name] = trim(
-                    $this->normalizeClass($merged[$name] ?? null) . ' ' . $this->normalizeClass($value),
-                );
-
-                continue;
-            }
-
-            $merged[$name] = $value;
+        if ($entry === null) {
+            return $default;
         }
 
-        return new self($merged);
+        return $entry->value;
     }
 
-    /**
-     * Returns a new bag with additional class names appended.
-     *
-     * @param string|array<int|string, mixed>|null $class
-     */
+    public function has(string $name): bool
+    {
+        return array_key_exists(strtolower($name), $this->entries);
+    }
+
+    /** @param array<array-key, mixed>|AttributeBag $attributes */
+    public function merge(array|self $attributes): self
+    {
+        $incoming = $attributes instanceof self ? $attributes : new self($attributes);
+        return new self(array_values(AttributeBagData::merge($this->entries, $incoming->entries)), true);
+    }
+
+    /** @param string|array<int|string, mixed>|null $class */
     public function class(string|array|null $class): self
     {
         return $this->merge(['class' => $class]);
     }
 
-    /**
-     * Renders the bag as escaped HTML attributes.
-     */
     public function toHtml(): string
     {
-        return implode('', array_map($this->renderAttribute(...), array_keys($this->attributes), $this->attributes));
-    }
-
-    /**
-     * Converts supported class formats into a space-separated string.
-     */
-    private function normalizeClass(mixed $class): string
-    {
-        return match (true) {
-            is_array($class) => $this->normalizeClassArray($class),
-            $class === null, is_bool($class) => '',
-            default => $this->stringClass($class),
-        };
-    }
-
-    /**
-     * Renders one attribute or an empty string when omitted.
-     */
-    private function renderAttribute(string|int $name, mixed $value): string
-    {
-        $name = (string) $name;
-        if ($name === 'class' && !is_bool($value) && $value !== null) {
-            $value = $this->normalizeClass($value);
+        foreach ($this->entries as $entry) {
+            if ($entry->isDynamic()) {
+                throw new RuntimeException('Dynamic attributes require a target element serializer.');
+            }
         }
 
-        return HtmlAttributeRenderer::render($name, $value);
+        return $this->toHtmlFor('div');
     }
 
     /**
-     * Converts an array class value into a space-separated string.
-     *
-     * @param array<int|string, mixed> $class
+     * The target element is required because output safety depends on its attribute context.
      */
-    private function normalizeClassArray(array $class): string
+    public function toHtmlFor(string $element, ?OutputRenderer $renderer = null): string
     {
-        $classes = array_map(
-            fn(string|int $name, mixed $enabled): string => match (true) {
-                is_int($name) => $this->stringClass($enabled),
-                (bool) $enabled => $name,
-                default => '',
-            },
-            array_keys($class),
-            $class,
-        );
+        $renderer ??= new OutputRenderer();
+        $html = '';
 
-        return trim(implode(' ', array_filter($classes)));
-    }
+        foreach ($this->entries as $entry) {
+            $value =
+                !$entry->isDynamic() && $entry->name === 'class' && !is_bool($entry->value) && $entry->value !== null
+                    ? AttributeClassValue::normalize($entry->value)
+                    : $entry->value;
 
-    /**
-     * Converts scalar or stringable class values into text.
-     */
-    private function stringClass(mixed $class): string
-    {
-        return match (true) {
-            is_string($class) => trim($class),
-            is_int($class), is_float($class) => (string) $class,
-            $class instanceof Stringable => trim($class->__toString()),
-            default => '',
-        };
+            if ($entry->isDynamic()) {
+                if ($entry->location === null) {
+                    throw new RuntimeException('Dynamic attribute has no source location: ' . $entry->name);
+                }
+
+                $html .= $renderer->renderDynamicAttribute($element, $entry->name, $value, $entry->location);
+                continue;
+            }
+
+            $html .= $renderer->renderStaticAttribute($element, $entry->name, $value);
+        }
+
+        return $html;
     }
 }

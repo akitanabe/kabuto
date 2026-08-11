@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kabuto\Parser;
 
 use Kabuto\Ast\AttributeNode;
+use Kabuto\Ast\AttributeSourceLocations;
 use Kabuto\Ast\PropNode;
+use Kabuto\Diagnostics\SourceLocation;
 
 final readonly class TagParser
 {
@@ -56,7 +58,7 @@ final readonly class TagParser
                 return [$attributes, $props, false];
             }
 
-            [$name, $value, $isDynamic, $isBare, $valueStartOffset] = $this->readAttribute();
+            [$name, $value, $isDynamic, $isBare, $valueStartOffset, $nameStartOffset] = $this->readAttribute();
 
             if ($isDynamic) {
                 $props[] = new PropNode(
@@ -67,14 +69,23 @@ final readonly class TagParser
                 continue;
             }
 
-            $attributes[] = new AttributeNode($name, $value, $isBare, $position++);
+            $attributes[] = new AttributeNode(
+                $name,
+                $value,
+                $isBare,
+                $position++,
+                new AttributeSourceLocations(
+                    SourceLocation::fromOffset($this->cursor->source(), $nameStartOffset),
+                    SourceLocation::fromOffset($this->cursor->source(), $valueStartOffset),
+                ),
+            );
         }
     }
 
     /**
      * Parses one static bare attribute or quoted attribute assignment.
      *
-     * @return array{0: string, 1: string, 2: bool, 3: bool, 4: int}
+     * @return array{0: string, 1: string, 2: bool, 3: bool, 4: int, 5: int}
      */
     private function readAttribute(): array
     {
@@ -84,6 +95,7 @@ final readonly class TagParser
             $this->cursor->expect(':');
         }
 
+        $nameStartOffset = $this->cursor->offset();
         $name = $this->cursor->readName();
         $this->cursor->skipWhitespace();
 
@@ -92,7 +104,7 @@ final readonly class TagParser
                 $this->cursor->expect('=');
             }
 
-            return [$name, '', false, true, $this->cursor->offset()];
+            return [$name, '', false, true, $this->cursor->offset(), $nameStartOffset];
         }
 
         $this->cursor->expect('=');
@@ -100,6 +112,6 @@ final readonly class TagParser
 
         $quoted = $this->cursor->readQuotedValueWithOffset();
 
-        return [$name, $quoted['value'], $isDynamic, false, $quoted['startOffset']];
+        return [$name, $quoted['value'], $isDynamic, false, $quoted['startOffset'], $nameStartOffset];
     }
 }

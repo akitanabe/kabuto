@@ -11,6 +11,7 @@ final readonly class AttributeNode
         private string $value,
         private bool $bare = false,
         private int $position = PHP_INT_MAX,
+        private ?AttributeSourceLocations $locations = null,
     ) {}
 
     /**
@@ -40,5 +41,15 @@ final readonly class AttributeNode
     public function position(): int
     {
         return $this->position;
+    }
+
+    public function location(): ?\Kabuto\Diagnostics\SourceLocation
+    {
+        return $this->locations?->name;
+    }
+
+    public function valueLocation(): ?\Kabuto\Diagnostics\SourceLocation
+    {
+        return $this->locations?->value;
     }
 }

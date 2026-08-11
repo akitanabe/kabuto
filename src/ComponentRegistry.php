@@ -40,6 +40,10 @@ final class ComponentRegistry
             $props = $props->props();
         }
 
+        if ($attributes !== null && array_key_exists('attributes', $props)) {
+            throw new InvalidArgumentException('The attributes prop is reserved for the component attribute binding.');
+        }
+
         if (!array_key_exists($name, $this->definitions)) {
             if ($templateEngine !== null) {
                 return new TemplateOnlyComponent(

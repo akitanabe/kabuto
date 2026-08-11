@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kabuto;
 
+use Kabuto\Diagnostics\SourceLocation;
+
 final class ComponentRenderer
 {
     private OutputRenderer $outputRenderer;
@@ -58,6 +60,27 @@ final class ComponentRenderer
             $this->evaluate($expression, $scope),
             $location,
         );
+    }
+
+    public function renderAttributeBag(string $element, AttributeBag $attributes): string
+    {
+        return $attributes->toHtmlFor($element, $this->outputRenderer);
+    }
+
+    public function renderSpreadAttributes(
+        string $element,
+        AttributeBag $defaults,
+        mixed $incoming,
+        ?SourceLocation $location,
+    ): string {
+        if (!$incoming instanceof AttributeBag) {
+            $message = 'Attribute spread value must be an AttributeBag';
+            throw $location === null
+                ? RenderException::at($message, 0)
+                : RenderException::atLocation($message, $location);
+        }
+
+        return $this->renderAttributeBag($element, $defaults->merge($incoming));
     }
 
     /**

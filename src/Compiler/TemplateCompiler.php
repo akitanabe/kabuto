@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace Kabuto\Compiler;
 
-use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
-use Kabuto\Ast\PropNode;
 use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
-use Kabuto\Diagnostics\SourceLocation;
 use Kabuto\Expression;
-use Kabuto\HtmlAttributeRenderer;
-use Kabuto\HtmlSyntax;
 
 final class TemplateCompiler
 {
@@ -68,7 +63,11 @@ final class TemplateCompiler
         }
 
         if ($node instanceof ElementNode) {
-            return $this->compileElement($node);
+            return new ElementNodeCompiler()->compile(
+                $node,
+                $this->compileNodes(...),
+                $this->compileExpressionData(...),
+            );
         }
 
         if ($node instanceof ComponentNode) {
@@ -85,87 +84,16 @@ final class TemplateCompiler
     }
 
     /**
-     * Compiles a normal HTML element and its children.
-     */
-    private function compileElement(ElementNode $node): string
-    {
-        $openTag = $this->string('<' . $node->name());
-
-        foreach ($node->outputAttributes() as $attribute) {
-            if ($attribute instanceof AttributeNode) {
-                $openTag .= ' . ' . $this->string(HtmlAttributeRenderer::renderStatic($attribute));
-                continue;
-            }
-
-            $openTag .=
-                ' . $renderer->renderDynamicAttribute('
-                . $this->string($node->name())
-                . ', '
-                . $this->string($attribute->name())
-                . ', '
-                . $this->compileExpressionData($attribute->expression())
-                . ', $scope)';
-        }
-
-        return (
-            $openTag
-            . ' . '
-            . $this->string('>')
-            . ' . '
-            . $this->compileNodes($node->children())
-            . (HtmlSyntax::isVoidElement($node->name()) ? '' : ' . ' . $this->string('</' . $node->name() . '>'))
-        );
-    }
-
-    /**
      * Compiles a component invocation through the runtime component renderer.
      */
     private function compileComponent(ComponentNode $node): string
     {
-        $attributeEntries = array_map(
-            fn(AttributeNode $attribute): string => (
-                $this->string($attribute->name())
-                . ' => '
-                . ($attribute->isBare() ? 'true' : $this->string($attribute->value()))
-            ),
-            $node->attributes(),
+        return new ComponentNodeCompiler()->compile(
+            $node,
+            $this->compileExpressionData(...),
+            $this->compileSlot($node->children()),
+            $this->compileNamedSlots($node->slots()),
         );
-
-        return (
-            '$renderer->component('
-            . $this->string($node->name())
-            . ', new \\Kabuto\\ComponentInvocation('
-            . $this->compileProps($node->props())
-            . ', '
-            . 'new \\Kabuto\\AttributeBag(['
-            . implode(', ', $attributeEntries)
-            . '])'
-            . ', '
-            . $this->compileSlot($node->children())
-            . ', '
-            . $this->compileNamedSlots($node->slots())
-            . ', $context))'
-        );
-    }
-
-    /**
-     * Compiles dynamic props into a component props array.
-     *
-     * @param list<PropNode> $props
-     */
-    private function compileProps(array $props): string
-    {
-        $entries = [];
-
-        foreach ($props as $prop) {
-            $entries[] =
-                $this->string($prop->name())
-                . ' => $renderer->evaluate('
-                . $this->compileExpressionData($prop->expressionData())
-                . ', $scope)';
-        }
-
-        return '[' . implode(', ', $entries) . ']';
     }
 
     /**
@@ -208,17 +136,6 @@ final class TemplateCompiler
      */
     private function compileExpressionData(Expression $expression): string
     {
-        $compileLocation = static fn(?SourceLocation $location): string => $location === null
-            ? 'null'
-            : 'new \\Kabuto\\Diagnostics\\SourceLocation(...'
-                . var_export([
-                    'offset' => $location->offset,
-                    'line' => $location->line,
-                    'byteColumn' => $location->byteColumn,
-                    'templateName' => $location->templateName,
-                ], return: true)
-                . ')';
-
         return (
             'new \\Kabuto\\Expression('
             . $this->string($expression->variable())
@@ -227,9 +144,9 @@ final class TemplateCompiler
             . ', '
             . $this->string($expression->source())
             . ', '
-            . $compileLocation($expression->location())
+            . PhpSource::location($expression->location())
             . ', ['
-            . implode(', ', array_map($compileLocation, $expression->filterLocations()))
+            . implode(', ', array_map(PhpSource::location(...), $expression->filterLocations()))
             . ']'
             . ')'
         );
@@ -240,6 +157,6 @@ final class TemplateCompiler
      */
     private function string(string $value): string
     {
-        return var_export($value, return: true);
+        return PhpSource::string($value);
     }
 }

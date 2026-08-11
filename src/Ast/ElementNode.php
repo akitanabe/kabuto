@@ -18,6 +18,7 @@ final readonly class ElementNode implements Node
         private array $attributes = [],
         private array $children = [],
         private array $dynamicAttributes = [],
+        private ?SpreadAttributeNode $spread = null,
     ) {}
 
     /**
@@ -75,5 +76,10 @@ final readonly class ElementNode implements Node
         );
 
         return $attributes;
+    }
+
+    public function spread(): ?SpreadAttributeNode
+    {
+        return $this->spread;
     }
 }

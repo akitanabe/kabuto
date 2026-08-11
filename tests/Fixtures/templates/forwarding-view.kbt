@@ -1,0 +1,1 @@
+<a class="view" k-attributes="$attributes">{{ $label }}</a>

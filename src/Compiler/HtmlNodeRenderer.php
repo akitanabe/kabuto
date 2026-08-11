@@ -6,6 +6,9 @@ namespace Kabuto\Compiler;
 
 use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\AttributeBag;
+use Kabuto\AttributeEntry;
+use Kabuto\AttributeProvenance;
 use Kabuto\ComponentRenderer;
 use Kabuto\HtmlAttributeRenderer;
 use Kabuto\HtmlSyntax;
@@ -46,6 +49,50 @@ final class HtmlNodeRenderer
      */
     private function openTag(ElementNode $node, RenderScope $scope, ComponentRenderer $renderer): string
     {
+        if ($node->spread() !== null) {
+            $entries = [];
+            foreach ($node->outputAttributes() as $attribute) {
+                if ($attribute instanceof AttributeNode) {
+                    $entries[] = new AttributeEntry(
+                        $attribute->name(),
+                        $attribute->isBare() ? true : $attribute->value(),
+                        AttributeProvenance::Static,
+                        $attribute->location(),
+                    );
+                    continue;
+                }
+
+                $location = $attribute->expression()->location();
+                if ($location === null) {
+                    throw \Kabuto\RenderException::at(
+                        'Dynamic attribute has no source location',
+                        $attribute->expression()->offset(),
+                    );
+                }
+
+                $entries[] = new AttributeEntry(
+                    $attribute->name(),
+                    $renderer->evaluate($attribute->expression(), $scope),
+                    AttributeProvenance::Dynamic,
+                    $location,
+                );
+            }
+
+            $expression = $node->spread()->expression();
+
+            return (
+                '<'
+                . $node->name()
+                . $renderer->renderSpreadAttributes(
+                    $node->name(),
+                    AttributeBag::fromEntries($entries),
+                    $renderer->evaluate($expression, $scope),
+                    $expression->location(),
+                )
+                . '>'
+            );
+        }
+
         $html = '<' . $node->name();
 
         foreach ($node->outputAttributes() as $attribute) {

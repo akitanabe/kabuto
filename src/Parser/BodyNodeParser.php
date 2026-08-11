@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kabuto\Parser;
 
-use Kabuto\Ast\DynamicAttributeNode;
 use Kabuto\Ast\ElementNode;
 use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
@@ -15,6 +14,8 @@ use Kabuto\OutputContextPolicy;
 final readonly class BodyNodeParser
 {
     private ComponentParser $componentParser;
+
+    private ElementAttributeParser $elementAttributeParser;
 
     /**
      * Stores collaborators used to convert open tags into body nodes.
@@ -27,6 +28,7 @@ final readonly class BodyNodeParser
         private TextInterpolationParser $interpolationParser = new TextInterpolationParser(),
     ) {
         $this->componentParser = new ComponentParser($templateParser, $componentPrefix);
+        $this->elementAttributeParser = new ElementAttributeParser($cursor, $componentPrefix);
     }
 
     /**
@@ -70,10 +72,16 @@ final readonly class BodyNodeParser
             return $this->componentParser->parseComponent($tag);
         }
 
-        $dynamicAttributes = $this->dynamicAttributes($tag);
+        $dynamicAttributes = $this->elementAttributeParser->dynamic($tag);
+        [$staticAttributes, $spread] = $this->elementAttributeParser->spread($tag);
 
         if ($tag->selfClosing || HtmlSyntax::isVoidElement($tag->name)) {
-            return new ElementNode($tag->name, $tag->attributes, dynamicAttributes: $dynamicAttributes);
+            return new ElementNode(
+                $tag->name,
+                $staticAttributes,
+                dynamicAttributes: $dynamicAttributes,
+                spread: $spread,
+            );
         }
 
         if (HtmlSyntax::isRawTextElement($tag->name)) {
@@ -92,35 +100,15 @@ final readonly class BodyNodeParser
                 }
             }
 
-            return new ElementNode($tag->name, $tag->attributes, $children, $dynamicAttributes);
+            return new ElementNode($tag->name, $staticAttributes, $children, $dynamicAttributes, $spread);
         }
 
         return new ElementNode(
             $tag->name,
-            $tag->attributes,
+            $staticAttributes,
             $this->templateParser->parseChildren($tag->name),
             $dynamicAttributes,
+            $spread,
         );
-    }
-
-    /** @return list<DynamicAttributeNode> */
-    private function dynamicAttributes(OpenTag $tag): array
-    {
-        $attributes = [];
-
-        foreach ($tag->props as $prop) {
-            $context = OutputContextPolicy::attribute($tag->name, $prop->name());
-            if ($context === OutputContext::Forbidden || $context === OutputContext::Unsupported) {
-                $status = $context === OutputContext::Forbidden ? 'forbidden' : 'unsupported';
-                throw ParseException::at(
-                    'Dynamic attribute ' . $prop->name() . ' is ' . $status,
-                    $prop->expressionData()->offset(),
-                );
-            }
-
-            $attributes[] = new DynamicAttributeNode($prop->name(), $prop->expressionData(), $prop->position());
-        }
-
-        return $attributes;
     }
 }
