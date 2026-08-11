@@ -30,6 +30,14 @@ final class SourceCursor
     }
 
     /**
+     * Returns the complete source used by this cursor for diagnostics.
+     */
+    public function source(): string
+    {
+        return $this->source;
+    }
+
+    /**
      * Returns whether the full source has been consumed.
      */
     public function isEnd(): bool
@@ -94,6 +102,16 @@ final class SourceCursor
      */
     public function readQuotedValue(): string
     {
+        return $this->readQuotedValueWithOffset()['value'];
+    }
+
+    /**
+     * Reads a quoted value and returns the byte offset of its first character.
+     *
+     * @return array{value: string, startOffset: int}
+     */
+    public function readQuotedValueWithOffset(): array
+    {
         $quote = $this->peek();
         if ($quote !== '"' && $quote !== "'") {
             throw ParseException::at('Expected quoted attribute value', $this->offset);
@@ -113,7 +131,7 @@ final class SourceCursor
         $value = substr($this->source, $start, $this->offset - $start);
         $this->offset++;
 
-        return $value;
+        return ['value' => $value, 'startOffset' => $start];
     }
 
     /**

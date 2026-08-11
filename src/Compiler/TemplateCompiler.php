@@ -11,6 +11,8 @@ use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
 use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
+use Kabuto\Diagnostics\SourceLocation;
+use Kabuto\Expression;
 use Kabuto\HtmlAttributeRenderer;
 use Kabuto\HtmlSyntax;
 
@@ -26,6 +28,8 @@ final class TemplateCompiler
         return (
             'return static function (array $data, \\Kabuto\\RenderContext $context, '
             . '\\Kabuto\\ComponentRenderer $renderer): string {'
+            . "\n"
+            . '    $scope = \\Kabuto\\RenderScope::root($data);'
             . "\n"
             . '    return '
             . $this->compileNodes($nodes)
@@ -137,7 +141,7 @@ final class TemplateCompiler
         $entries = [];
 
         foreach ($props as $prop) {
-            $entries[] = $this->string($prop->name()) . ' => ' . $this->compileDataLookup($prop->expression());
+            $entries[] = $this->string($prop->name()) . ' => ' . $this->compileExpression($prop->expressionData());
         }
 
         return '[' . implode(', ', $entries) . ']';
@@ -155,7 +159,7 @@ final class TemplateCompiler
         }
 
         return (
-            'new \\Kabuto\\Slot(static function (\\Kabuto\\RenderContext $context) use ($data, $renderer): string {'
+            'new \\Kabuto\\Slot(static function (\\Kabuto\\RenderContext $context) use ($scope, $renderer): string {'
             . ' return '
             . $this->compileNodes($children)
             . '; })'
@@ -179,11 +183,35 @@ final class TemplateCompiler
     }
 
     /**
-     * Compiles a simple `$name` dynamic expression into a render data lookup.
+     * Compiles an immutable expression data value for the shared runtime.
      */
-    private function compileDataLookup(string $expression): string
+    private function compileExpression(Expression $expression): string
     {
-        return '($data[' . $this->string(substr($expression, offset: 1)) . '] ?? null)';
+        $compileLocation = static fn(?SourceLocation $location): string => $location === null
+            ? 'null'
+            : 'new \\Kabuto\\Diagnostics\\SourceLocation(...'
+                . var_export([
+                    'offset' => $location->offset,
+                    'line' => $location->line,
+                    'byteColumn' => $location->byteColumn,
+                    'templateName' => $location->templateName,
+                ], return: true)
+                . ')';
+
+        return (
+            '$renderer->evaluate(new \\Kabuto\\Expression('
+            . $this->string($expression->variable())
+            . ', '
+            . var_export($expression->filters(), return: true)
+            . ', '
+            . $this->string($expression->source())
+            . ', '
+            . $compileLocation($expression->location())
+            . ', ['
+            . implode(', ', array_map($compileLocation, $expression->filterLocations()))
+            . ']'
+            . '), $scope)'
+        );
     }
 
     /**

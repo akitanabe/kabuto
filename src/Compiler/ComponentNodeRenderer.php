@@ -12,6 +12,7 @@ use Kabuto\AttributeBag;
 use Kabuto\ComponentInvocation;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
+use Kabuto\RenderScope;
 use Kabuto\Slot;
 
 final class ComponentNodeRenderer
@@ -19,11 +20,10 @@ final class ComponentNodeRenderer
     /**
      * Renders a component invocation through the runtime component renderer.
      *
-     * @param array<string, mixed> $data
      */
     public function render(
         ComponentNode $node,
-        array $data,
+        RenderScope $scope,
         RenderContext $context,
         ComponentRenderer $renderer,
         NodeRenderer $nodeRenderer,
@@ -31,10 +31,10 @@ final class ComponentNodeRenderer
         return $renderer->component(
             $node->name(),
             new ComponentInvocation(
-                $this->props($node->props(), $data),
+                $this->props($node->props(), $scope, $renderer),
                 $this->attributes($node->attributes()),
-                $this->slot($node->children(), $data, $renderer, $nodeRenderer),
-                $this->slots($node->slots(), $data, $renderer, $nodeRenderer),
+                $this->slot($node->children(), $scope, $renderer, $nodeRenderer),
+                $this->slots($node->slots(), $scope, $renderer, $nodeRenderer),
                 $context,
             ),
         );
@@ -44,15 +44,14 @@ final class ComponentNodeRenderer
      * Builds component props from dynamic render data.
      *
      * @param list<PropNode> $props
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function props(array $props, array $data): array
+    private function props(array $props, RenderScope $scope, ComponentRenderer $renderer): array
     {
         $values = [];
 
         foreach ($props as $prop) {
-            $values[$prop->name()] = $data[substr($prop->expression(), offset: 1)] ?? null;
+            $values[$prop->name()] = $renderer->evaluate($prop->expressionData(), $scope);
         }
 
         return $values;
@@ -78,10 +77,13 @@ final class ComponentNodeRenderer
      * Creates a runtime slot for child nodes.
      *
      * @param list<Node> $children
-     * @param array<string, mixed> $data
      */
-    private function slot(array $children, array $data, ComponentRenderer $renderer, NodeRenderer $nodeRenderer): ?Slot
-    {
+    private function slot(
+        array $children,
+        RenderScope $scope,
+        ComponentRenderer $renderer,
+        NodeRenderer $nodeRenderer,
+    ): ?Slot {
         if ($children === []) {
             return null;
         }
@@ -89,7 +91,7 @@ final class ComponentNodeRenderer
         return new Slot(
             static fn(RenderContext $context): string => $nodeRenderer->renderNodes(
                 $children,
-                $data,
+                $scope,
                 $context,
                 $renderer,
             ),
@@ -100,15 +102,18 @@ final class ComponentNodeRenderer
      * Creates runtime named slots keyed by slot name.
      *
      * @param array<string, list<Node>> $slots
-     * @param array<string, mixed> $data
      * @return array<string, Slot>
      */
-    private function slots(array $slots, array $data, ComponentRenderer $renderer, NodeRenderer $nodeRenderer): array
-    {
+    private function slots(
+        array $slots,
+        RenderScope $scope,
+        ComponentRenderer $renderer,
+        NodeRenderer $nodeRenderer,
+    ): array {
         $values = [];
 
         foreach ($slots as $name => $children) {
-            $slot = $this->slot($children, $data, $renderer, $nodeRenderer);
+            $slot = $this->slot($children, $scope, $renderer, $nodeRenderer);
             if ($slot !== null) {
                 $values[$name] = $slot;
             }

@@ -16,7 +16,16 @@ final class ComponentRenderer
         private ?TemplateEngine $templateEngine = null,
         private ?Slot $slot = null,
         private array $slots = [],
+        private ExpressionRuntime $expressionRuntime = new ExpressionRuntime(),
     ) {}
+
+    /**
+     * Evaluates one parsed expression in the given immutable render scope.
+     */
+    public function evaluate(Expression $expression, RenderScope $scope): mixed
+    {
+        return $this->expressionRuntime->evaluate($expression, $scope);
+    }
 
     /**
      * Returns a renderer clone bound to the current template engine.

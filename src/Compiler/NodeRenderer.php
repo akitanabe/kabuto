@@ -11,6 +11,7 @@ use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
 use Kabuto\ComponentRenderer;
 use Kabuto\RenderContext;
+use Kabuto\RenderScope;
 
 final class NodeRenderer
 {
@@ -26,14 +27,17 @@ final class NodeRenderer
      * Renders a list of AST nodes.
      *
      * @param list<Node> $nodes
-     * @param array<string, mixed> $data
      */
-    public function renderNodes(array $nodes, array $data, RenderContext $context, ComponentRenderer $renderer): string
-    {
+    public function renderNodes(
+        array $nodes,
+        RenderScope $scope,
+        RenderContext $context,
+        ComponentRenderer $renderer,
+    ): string {
         $html = '';
 
         foreach ($nodes as $node) {
-            $html .= $this->renderNode($node, $data, $context, $renderer);
+            $html .= $this->renderNode($node, $scope, $context, $renderer);
         }
 
         return $html;
@@ -42,20 +46,23 @@ final class NodeRenderer
     /**
      * Renders one supported AST node.
      *
-     * @param array<string, mixed> $data
      */
-    private function renderNode(Node $node, array $data, RenderContext $context, ComponentRenderer $renderer): string
-    {
+    private function renderNode(
+        Node $node,
+        RenderScope $scope,
+        RenderContext $context,
+        ComponentRenderer $renderer,
+    ): string {
         if ($node instanceof TextNode) {
             return $node->content();
         }
 
         if ($node instanceof ElementNode) {
-            return $this->htmlRenderer->render($node, $data, $context, $renderer, $this);
+            return $this->htmlRenderer->render($node, $scope, $context, $renderer, $this);
         }
 
         if ($node instanceof ComponentNode) {
-            return $this->componentRenderer->render($node, $data, $context, $renderer, $this);
+            return $this->componentRenderer->render($node, $scope, $context, $renderer, $this);
         }
 
         if ($node instanceof SlotOutletNode) {

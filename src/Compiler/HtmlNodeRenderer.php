@@ -9,17 +9,17 @@ use Kabuto\ComponentRenderer;
 use Kabuto\HtmlAttributeRenderer;
 use Kabuto\HtmlSyntax;
 use Kabuto\RenderContext;
+use Kabuto\RenderScope;
 
 final class HtmlNodeRenderer
 {
     /**
      * Renders a normal HTML element with escaped static attribute values.
      *
-     * @param array<string, mixed> $data
      */
     public function render(
         ElementNode $node,
-        array $data,
+        RenderScope $scope,
         RenderContext $context,
         ComponentRenderer $renderer,
         NodeRenderer $nodeRenderer,
@@ -32,7 +32,7 @@ final class HtmlNodeRenderer
 
         return (
             $openTag
-            . $nodeRenderer->renderNodes($node->children(), $data, $context, $renderer)
+            . $nodeRenderer->renderNodes($node->children(), $scope, $context, $renderer)
             . '</'
             . $node->name()
             . '>'
