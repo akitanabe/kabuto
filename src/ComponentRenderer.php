@@ -6,6 +6,8 @@ namespace Kabuto;
 
 final class ComponentRenderer
 {
+    private OutputRenderer $outputRenderer;
+
     /**
      * Stores the registry used for explicit component name resolution.
      *
@@ -17,7 +19,9 @@ final class ComponentRenderer
         private ?Slot $slot = null,
         private array $slots = [],
         private ExpressionRuntime $expressionRuntime = new ExpressionRuntime(),
-    ) {}
+    ) {
+        $this->outputRenderer = new OutputRenderer();
+    }
 
     /**
      * Evaluates one parsed expression in the given immutable render scope.
@@ -25,6 +29,35 @@ final class ComponentRenderer
     public function evaluate(Expression $expression, RenderScope $scope): mixed
     {
         return $this->expressionRuntime->evaluate($expression, $scope);
+    }
+
+    public function renderText(Expression $expression, RenderScope $scope): string
+    {
+        $location = $expression->location();
+        if ($location === null) {
+            throw RenderException::at('Dynamic output has no source location', $expression->offset());
+        }
+
+        return $this->outputRenderer->renderText($this->evaluate($expression, $scope), $location);
+    }
+
+    public function renderDynamicAttribute(
+        string $element,
+        string $name,
+        Expression $expression,
+        RenderScope $scope,
+    ): string {
+        $location = $expression->location();
+        if ($location === null) {
+            throw RenderException::at('Dynamic output has no source location', $expression->offset());
+        }
+
+        return $this->outputRenderer->renderDynamicAttribute(
+            $element,
+            $name,
+            $this->evaluate($expression, $scope),
+            $location,
+        );
     }
 
     /**

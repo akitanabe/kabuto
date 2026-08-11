@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kabuto\Parser;
 
+use Kabuto\Ast\DynamicAttributeNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
-use Kabuto\Ast\TextNode;
 use Kabuto\HtmlSyntax;
+use Kabuto\OutputContext;
+use Kabuto\OutputContextPolicy;
 
 final readonly class BodyNodeParser
 {
@@ -21,6 +24,7 @@ final readonly class BodyNodeParser
         private TemplateParser $templateParser,
         private ComponentPrefix $componentPrefix,
         private HtmlLiteralReader $htmlLiteralReader,
+        private TextInterpolationParser $interpolationParser = new TextInterpolationParser(),
     ) {
         $this->componentParser = new ComponentParser($templateParser, $componentPrefix);
     }
@@ -66,22 +70,57 @@ final readonly class BodyNodeParser
             return $this->componentParser->parseComponent($tag);
         }
 
-        if ($tag->props !== []) {
-            throw ParseException::at('Dynamic props are only supported on components', $this->cursor->offset());
-        }
+        $dynamicAttributes = $this->dynamicAttributes($tag);
 
         if ($tag->selfClosing || HtmlSyntax::isVoidElement($tag->name)) {
-            return new ElementNode($tag->name, $tag->attributes);
+            return new ElementNode($tag->name, $tag->attributes, dynamicAttributes: $dynamicAttributes);
         }
 
         if (HtmlSyntax::isRawTextElement($tag->name)) {
-            return new ElementNode(
-                $tag->name,
-                $tag->attributes,
-                [new TextNode($this->htmlLiteralReader->readRawTextUntilClosingTag($tag->name))],
-            );
+            $contentOffset = $this->cursor->offset();
+            $content = $this->htmlLiteralReader->readRawTextUntilClosingTag($tag->name);
+            $children = $this->interpolationParser->parse($content, $contentOffset, $this->cursor->source());
+
+            if (OutputContextPolicy::text($tag->name) === OutputContext::Forbidden) {
+                foreach ($children as $child) {
+                    if ($child instanceof InterpolationNode) {
+                        throw ParseException::at(
+                            'Dynamic output is forbidden in ' . strtolower($tag->name) . ' content',
+                            $child->expression()->offset(),
+                        );
+                    }
+                }
+            }
+
+            return new ElementNode($tag->name, $tag->attributes, $children, $dynamicAttributes);
         }
 
-        return new ElementNode($tag->name, $tag->attributes, $this->templateParser->parseChildren($tag->name));
+        return new ElementNode(
+            $tag->name,
+            $tag->attributes,
+            $this->templateParser->parseChildren($tag->name),
+            $dynamicAttributes,
+        );
+    }
+
+    /** @return list<DynamicAttributeNode> */
+    private function dynamicAttributes(OpenTag $tag): array
+    {
+        $attributes = [];
+
+        foreach ($tag->props as $prop) {
+            $context = OutputContextPolicy::attribute($tag->name, $prop->name());
+            if ($context === OutputContext::Forbidden || $context === OutputContext::Unsupported) {
+                $status = $context === OutputContext::Forbidden ? 'forbidden' : 'unsupported';
+                throw ParseException::at(
+                    'Dynamic attribute ' . $prop->name() . ' is ' . $status,
+                    $prop->expressionData()->offset(),
+                );
+            }
+
+            $attributes[] = new DynamicAttributeNode($prop->name(), $prop->expressionData(), $prop->position());
+        }
+
+        return $attributes;
     }
 }

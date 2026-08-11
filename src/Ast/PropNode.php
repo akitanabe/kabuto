@@ -15,6 +15,7 @@ final readonly class PropNode
     public function __construct(
         private string $name,
         Expression|string $expression,
+        private int $position = PHP_INT_MAX,
     ) {
         $this->expressionData = $expression instanceof Expression
             ? $expression
@@ -45,5 +46,10 @@ final readonly class PropNode
     public function expressionData(): Expression
     {
         return $this->expressionData;
+    }
+
+    public function position(): int
+    {
+        return $this->position;
     }
 }

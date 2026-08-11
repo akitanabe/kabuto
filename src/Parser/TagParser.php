@@ -39,6 +39,7 @@ final readonly class TagParser
     {
         $attributes = [];
         $props = [];
+        $position = 0;
 
         while (true) {
             $this->cursor->skipWhitespace();
@@ -58,15 +59,15 @@ final readonly class TagParser
             [$name, $value, $isDynamic, $isBare, $valueStartOffset] = $this->readAttribute();
 
             if ($isDynamic) {
-                $props[] = new PropNode($name, $this->expressionParser->parse(
-                    $value,
-                    $valueStartOffset,
-                    $this->cursor->source(),
-                ));
+                $props[] = new PropNode(
+                    $name,
+                    $this->expressionParser->parse($value, $valueStartOffset, $this->cursor->source()),
+                    $position++,
+                );
                 continue;
             }
 
-            $attributes[] = new AttributeNode($name, $value, $isBare);
+            $attributes[] = new AttributeNode($name, $value, $isBare, $position++);
         }
     }
 

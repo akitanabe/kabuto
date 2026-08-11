@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kabuto\Compiler;
 
+use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ElementNode;
 use Kabuto\ComponentRenderer;
 use Kabuto\HtmlAttributeRenderer;
@@ -24,7 +25,7 @@ final class HtmlNodeRenderer
         ComponentRenderer $renderer,
         NodeRenderer $nodeRenderer,
     ): string {
-        $openTag = $this->openTag($node->name(), $node->attributes());
+        $openTag = $this->openTag($node, $scope, $renderer);
 
         if (HtmlSyntax::isVoidElement($node->name())) {
             return $openTag;
@@ -42,14 +43,20 @@ final class HtmlNodeRenderer
     /**
      * Builds an opening tag for a normal HTML element.
      *
-     * @param list<\Kabuto\Ast\AttributeNode> $attributes
      */
-    private function openTag(string $name, array $attributes): string
+    private function openTag(ElementNode $node, RenderScope $scope, ComponentRenderer $renderer): string
     {
-        $html = '<' . $name;
+        $html = '<' . $node->name();
 
-        foreach ($attributes as $attribute) {
-            $html .= HtmlAttributeRenderer::renderStatic($attribute);
+        foreach ($node->outputAttributes() as $attribute) {
+            $html .= $attribute instanceof AttributeNode
+                ? HtmlAttributeRenderer::renderStatic($attribute)
+                : $renderer->renderDynamicAttribute(
+                    $node->name(),
+                    $attribute->name(),
+                    $attribute->expression(),
+                    $scope,
+                );
         }
 
         return $html . '>';

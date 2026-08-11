@@ -7,6 +7,7 @@ namespace Kabuto\Compiler;
 use Kabuto\Ast\AttributeNode;
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\PropNode;
 use Kabuto\Ast\SlotOutletNode;
@@ -62,6 +63,10 @@ final class TemplateCompiler
             return $this->string($node->content());
         }
 
+        if ($node instanceof InterpolationNode) {
+            return '$renderer->renderText(' . $this->compileExpressionData($node->expression()) . ', $scope)';
+        }
+
         if ($node instanceof ElementNode) {
             return $this->compileElement($node);
         }
@@ -84,16 +89,28 @@ final class TemplateCompiler
      */
     private function compileElement(ElementNode $node): string
     {
-        $openTag = '<' . $node->name();
+        $openTag = $this->string('<' . $node->name());
 
-        foreach ($node->attributes() as $attribute) {
-            $openTag .= HtmlAttributeRenderer::renderStatic($attribute);
+        foreach ($node->outputAttributes() as $attribute) {
+            if ($attribute instanceof AttributeNode) {
+                $openTag .= ' . ' . $this->string(HtmlAttributeRenderer::renderStatic($attribute));
+                continue;
+            }
+
+            $openTag .=
+                ' . $renderer->renderDynamicAttribute('
+                . $this->string($node->name())
+                . ', '
+                . $this->string($attribute->name())
+                . ', '
+                . $this->compileExpressionData($attribute->expression())
+                . ', $scope)';
         }
 
-        $openTag .= '>';
-
         return (
-            $this->string($openTag)
+            $openTag
+            . ' . '
+            . $this->string('>')
             . ' . '
             . $this->compileNodes($node->children())
             . (HtmlSyntax::isVoidElement($node->name()) ? '' : ' . ' . $this->string('</' . $node->name() . '>'))
@@ -141,7 +158,11 @@ final class TemplateCompiler
         $entries = [];
 
         foreach ($props as $prop) {
-            $entries[] = $this->string($prop->name()) . ' => ' . $this->compileExpression($prop->expressionData());
+            $entries[] =
+                $this->string($prop->name())
+                . ' => $renderer->evaluate('
+                . $this->compileExpressionData($prop->expressionData())
+                . ', $scope)';
         }
 
         return '[' . implode(', ', $entries) . ']';
@@ -185,7 +206,7 @@ final class TemplateCompiler
     /**
      * Compiles an immutable expression data value for the shared runtime.
      */
-    private function compileExpression(Expression $expression): string
+    private function compileExpressionData(Expression $expression): string
     {
         $compileLocation = static fn(?SourceLocation $location): string => $location === null
             ? 'null'
@@ -199,7 +220,7 @@ final class TemplateCompiler
                 . ')';
 
         return (
-            '$renderer->evaluate(new \\Kabuto\\Expression('
+            'new \\Kabuto\\Expression('
             . $this->string($expression->variable())
             . ', '
             . var_export($expression->filters(), return: true)
@@ -210,7 +231,7 @@ final class TemplateCompiler
             . ', ['
             . implode(', ', array_map($compileLocation, $expression->filterLocations()))
             . ']'
-            . '), $scope)'
+            . ')'
         );
     }
 

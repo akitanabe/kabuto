@@ -10,6 +10,7 @@ final readonly class AttributeNode
         private string $name,
         private string $value,
         private bool $bare = false,
+        private int $position = PHP_INT_MAX,
     ) {}
 
     /**
@@ -34,5 +35,10 @@ final readonly class AttributeNode
     public function isBare(): bool
     {
         return $this->bare;
+    }
+
+    public function position(): int
+    {
+        return $this->position;
     }
 }

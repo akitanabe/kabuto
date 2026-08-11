@@ -6,6 +6,7 @@ namespace Kabuto\Compiler;
 
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\SlotOutletNode;
 use Kabuto\Ast\TextNode;
@@ -55,6 +56,10 @@ final class NodeRenderer
     ): string {
         if ($node instanceof TextNode) {
             return $node->content();
+        }
+
+        if ($node instanceof InterpolationNode) {
+            return $renderer->renderText($node->expression(), $scope);
         }
 
         if ($node instanceof ElementNode) {

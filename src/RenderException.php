@@ -27,9 +27,9 @@ final class RenderException extends RuntimeException
     /**
      * Creates an exception with a location already resolved by the parser.
      */
-    public static function atLocation(string $message, SourceLocation $location): self
+    public static function atLocation(string $message, SourceLocation $location, ?Throwable $previous = null): self
     {
-        return self::withDiagnostic($message, $location->offset, $location);
+        return self::withDiagnostic($message, $location->offset, $location, $previous);
     }
 
     /**
