@@ -13,10 +13,9 @@ use Kabuto\HtmlSyntax;
 final class ElementNodeCompiler
 {
     /**
-     * @param callable(list<\Kabuto\Ast\Node>): string $compileNodes
      * @param callable(Expression): string $compileExpression
      */
-    public function compile(ElementNode $node, callable $compileNodes, callable $compileExpression): string
+    public function compileOpenTag(ElementNode $node, callable $compileExpression, string $scope): string
     {
         $openTag = PhpSource::string('<' . $node->name());
 
@@ -26,14 +25,16 @@ final class ElementNodeCompiler
                 ' . $renderer->renderSpreadAttributes('
                 . PhpSource::string($node->name())
                 . ', '
-                . new AttributeBagCompiler()->compile($node->outputAttributes(), $compileExpression)
+                . new AttributeBagCompiler()->compile($node->outputAttributes(), $compileExpression, $scope)
                 . ', $renderer->evaluate('
                 . $compileExpression($expression)
-                . ', $scope), '
+                . ', '
+                . $scope
+                . '), '
                 . PhpSource::location($expression->location())
                 . ')';
 
-            return $this->finish($node, $openTag, $compileNodes);
+            return $openTag . ' . ' . PhpSource::string('>');
         }
 
         foreach ($node->outputAttributes() as $attribute) {
@@ -49,22 +50,16 @@ final class ElementNodeCompiler
                 . PhpSource::string($attribute->name())
                 . ', '
                 . $compileExpression($attribute->expression())
-                . ', $scope)';
+                . ', '
+                . $scope
+                . ')';
         }
 
-        return $this->finish($node, $openTag, $compileNodes);
+        return $openTag . ' . ' . PhpSource::string('>');
     }
 
-    /** @param callable(list<\Kabuto\Ast\Node>): string $compileNodes */
-    private function finish(ElementNode $node, string $openTag, callable $compileNodes): string
+    public function closingTag(ElementNode $node): ?string
     {
-        return (
-            $openTag
-            . ' . '
-            . PhpSource::string('>')
-            . ' . '
-            . $compileNodes($node->children())
-            . (HtmlSyntax::isVoidElement($node->name()) ? '' : ' . ' . PhpSource::string('</' . $node->name() . '>'))
-        );
+        return HtmlSyntax::isVoidElement($node->name()) ? null : '</' . $node->name() . '>';
     }
 }

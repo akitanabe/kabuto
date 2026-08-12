@@ -26,4 +26,9 @@ final class PhpSource
             ], return: true)
             . ')';
     }
+
+    public static function line(int $indent, string $source): string
+    {
+        return str_repeat('    ', $indent) . $source . "\n";
+    }
 }

@@ -6,6 +6,8 @@ namespace Kabuto\Compiler;
 
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\ForeachNode;
+use Kabuto\Ast\IfNode;
 use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\SlotOutletNode;
@@ -21,128 +23,263 @@ final class TemplateCompiler
      */
     public function compile(array $nodes): string
     {
+        $names = new PhpNameAllocator();
+        $body = $this->emitNodes($nodes, new CompilerScope('$scope', '$context'), '$html', 1, $names);
+
         return (
             'return static function (array $data, \\Kabuto\\RenderContext $context, '
             . '\\Kabuto\\ComponentRenderer $renderer): string {'
             . "\n"
             . '    $scope = \\Kabuto\\RenderScope::root($data);'
             . "\n"
-            . '    return '
-            . $this->compileNodes($nodes)
-            . ';'
+            . "    \$html = '';"
+            . "\n"
+            . $body
+            . '    return $html;'
             . "\n"
             . '};'
         );
     }
 
     /**
-     * Compiles a list of nodes into a string expression.
-     *
      * @param list<Node> $nodes
      */
-    private function compileNodes(array $nodes): string
-    {
-        if ($nodes === []) {
-            return "''";
+    private function emitNodes(
+        array $nodes,
+        CompilerScope $compilerScope,
+        string $accumulator,
+        int $indent,
+        PhpNameAllocator $names,
+    ): string {
+        $source = '';
+
+        foreach ($nodes as $node) {
+            $source .= $this->emitNode($node, $compilerScope, $accumulator, $indent, $names);
         }
 
-        return implode(' . ', array_map($this->compileNode(...), $nodes));
+        return $source;
     }
 
-    /**
-     * Compiles a single AST node into a string expression.
-     */
-    private function compileNode(Node $node): string
-    {
+    private function emitNode(
+        Node $node,
+        CompilerScope $compilerScope,
+        string $accumulator,
+        int $indent,
+        PhpNameAllocator $names,
+    ): string {
         if ($node instanceof TextNode) {
-            return $this->string($node->content());
+            return PhpSource::line($indent, $accumulator . ' .= ' . PhpSource::string($node->content()) . ';');
         }
 
         if ($node instanceof InterpolationNode) {
-            return '$renderer->renderText(' . $this->compileExpressionData($node->expression()) . ', $scope)';
-        }
-
-        if ($node instanceof ElementNode) {
-            return new ElementNodeCompiler()->compile(
-                $node,
-                $this->compileNodes(...),
-                $this->compileExpressionData(...),
+            return PhpSource::line(
+                $indent,
+                $accumulator
+                . ' .= $renderer->renderText('
+                . $this->compileExpressionData($node->expression())
+                . ', '
+                . $compilerScope->scope
+                . ');',
             );
         }
 
+        if ($node instanceof ElementNode) {
+            return $this->emitElement($node, $compilerScope, $accumulator, $indent, $names);
+        }
+
         if ($node instanceof ComponentNode) {
-            return $this->compileComponent($node);
+            return PhpSource::line(
+                $indent,
+                $accumulator . ' .= ' . $this->compileComponent($node, $compilerScope, $names) . ';',
+            );
         }
 
         if ($node instanceof SlotOutletNode) {
-            $slotName = $node->name() === null ? 'null' : $this->string($node->name());
+            $slotName = $node->name() === null ? 'null' : PhpSource::string($node->name());
 
-            return '$renderer->slotOutlet(' . $slotName . ', $context)';
+            return PhpSource::line(
+                $indent,
+                $accumulator . ' .= $renderer->slotOutlet(' . $slotName . ', ' . $compilerScope->context . ');',
+            );
+        }
+
+        if ($node instanceof IfNode) {
+            return $this->emitIf($node, $compilerScope, $accumulator, $indent, $names);
+        }
+
+        if ($node instanceof ForeachNode) {
+            return $this->emitForeach($node, $compilerScope, $accumulator, $indent, $names);
         }
 
         throw CompileException::unsupportedNode($node);
     }
 
-    /**
-     * Compiles a component invocation through the runtime component renderer.
-     */
-    private function compileComponent(ComponentNode $node): string
-    {
+    private function emitElement(
+        ElementNode $node,
+        CompilerScope $compilerScope,
+        string $accumulator,
+        int $indent,
+        PhpNameAllocator $names,
+    ): string {
+        $compiler = new ElementNodeCompiler();
+        $source = PhpSource::line(
+            $indent,
+            $accumulator
+            . ' .= '
+            . $compiler->compileOpenTag($node, $this->compileExpressionData(...), $compilerScope->scope)
+            . ';',
+        );
+        $source .= $this->emitNodes($node->children(), $compilerScope, $accumulator, $indent, $names);
+        $closingTag = $compiler->closingTag($node);
+
+        if ($closingTag !== null) {
+            $source .= PhpSource::line($indent, $accumulator . ' .= ' . PhpSource::string($closingTag) . ';');
+        }
+
+        return $source;
+    }
+
+    private function emitIf(
+        IfNode $node,
+        CompilerScope $compilerScope,
+        string $accumulator,
+        int $indent,
+        PhpNameAllocator $names,
+    ): string {
+        $source = '';
+
+        foreach ($node->branches() as $index => $branch) {
+            $keyword = $index === 0 ? 'if' : 'elseif';
+            $source .= PhpSource::line(
+                $indent,
+                $keyword
+                . ' (\\Kabuto\\ControlFlow::condition($renderer->evaluate('
+                . $this->compileExpressionData($branch->condition())
+                . ', '
+                . $compilerScope->scope
+                . '))) {',
+            );
+            $source .= $this->emitNodes($branch->children(), $compilerScope, $accumulator, $indent + 1, $names);
+            $source .= PhpSource::line($indent, '}');
+        }
+
+        $elseChildren = $node->elseChildren();
+        if ($elseChildren !== null) {
+            $source = rtrim(string: $source, characters: "\n") . ' else {' . "\n";
+            $source .= $this->emitNodes($elseChildren, $compilerScope, $accumulator, $indent + 1, $names);
+            $source .= PhpSource::line($indent, '}');
+        }
+
+        return $source;
+    }
+
+    private function emitForeach(
+        ForeachNode $node,
+        CompilerScope $compilerScope,
+        string $accumulator,
+        int $indent,
+        PhpNameAllocator $names,
+    ): string {
+        $collection = $names->next('collection');
+        $value = $names->next('value');
+        $iterationScope = $names->next('scope');
+        $expression = $node->collection();
+        $source = PhpSource::line(
+            $indent,
+            $collection
+            . ' = \\Kabuto\\ControlFlow::iterable($renderer->evaluate('
+            . $this->compileExpressionData($expression)
+            . ', '
+            . $compilerScope->scope
+            . '), '
+            . PhpSource::location($expression->location())
+            . ', '
+            . $expression->offset()
+            . ');',
+        );
+        $source .= PhpSource::line($indent, 'foreach (' . $collection . ' as ' . $value . ') {');
+        $source .= PhpSource::line(
+            $indent + 1,
+            $iterationScope
+            . ' = '
+            . $compilerScope->scope
+            . '->with('
+            . PhpSource::string($node->item())
+            . ', '
+            . $value
+            . ');',
+        );
+        $source .= $this->emitNodes(
+            $node->children(),
+            new CompilerScope($iterationScope, $compilerScope->context),
+            $accumulator,
+            $indent + 1,
+            $names,
+        );
+        $source .= PhpSource::line($indent, '}');
+
+        return $source;
+    }
+
+    private function compileComponent(
+        ComponentNode $node,
+        CompilerScope $compilerScope,
+        PhpNameAllocator $names,
+    ): string {
+        $slots = [];
+        foreach ($node->slots() as $name => $children) {
+            $slots[] = PhpSource::string($name) . ' => ' . $this->compileSlot($children, $compilerScope->scope, $names);
+        }
+
         return new ComponentNodeCompiler()->compile(
             $node,
             $this->compileExpressionData(...),
-            $this->compileSlot($node->children()),
-            $this->compileNamedSlots($node->slots()),
+            $this->compileSlot($node->children(), $compilerScope->scope, $names),
+            '[' . implode(', ', $slots) . ']',
+            $compilerScope,
         );
     }
 
     /**
-     * Compiles default slot children into a runtime Slot instance.
-     *
      * @param list<Node> $children
      */
-    private function compileSlot(array $children): string
+    private function compileSlot(array $children, string $scope, PhpNameAllocator $names): string
     {
         if ($children === []) {
             return 'null';
         }
 
+        $slotContext = $names->next('slotContext');
+        $slotHtml = $names->next('slotHtml');
+
         return (
-            'new \\Kabuto\\Slot(static function (\\Kabuto\\RenderContext $context) use ($scope, $renderer): string {'
-            . ' return '
-            . $this->compileNodes($children)
-            . '; })'
+            'new \\Kabuto\\Slot(static function (\\Kabuto\\RenderContext '
+            . $slotContext
+            . ') use ('
+            . $scope
+            . ', $renderer): string {'
+            . "\n"
+            . '    '
+            . $slotHtml
+            . " = '';\n"
+            . $this->emitNodes($children, new CompilerScope($scope, $slotContext), $slotHtml, 1, $names)
+            . '    return '
+            . $slotHtml
+            . ';'
+            . "\n"
+            . '})'
         );
     }
 
-    /**
-     * Compiles named slots into runtime Slot instances keyed by name.
-     *
-     * @param array<string, list<Node>> $slots
-     */
-    private function compileNamedSlots(array $slots): string
-    {
-        $entries = [];
-
-        foreach ($slots as $name => $children) {
-            $entries[] = $this->string($name) . ' => ' . $this->compileSlot($children);
-        }
-
-        return '[' . implode(', ', $entries) . ']';
-    }
-
-    /**
-     * Compiles an immutable expression data value for the shared runtime.
-     */
     private function compileExpressionData(Expression $expression): string
     {
         return (
             'new \\Kabuto\\Expression('
-            . $this->string($expression->variable())
+            . PhpSource::string($expression->variable())
             . ', '
             . var_export($expression->filters(), return: true)
             . ', '
-            . $this->string($expression->source())
+            . PhpSource::string($expression->source())
             . ', '
             . PhpSource::location($expression->location())
             . ', ['
@@ -150,13 +287,5 @@ final class TemplateCompiler
             . ']'
             . ')'
         );
-    }
-
-    /**
-     * Converts a PHP string value into a source-code literal.
-     */
-    private function string(string $value): string
-    {
-        return PhpSource::string($value);
     }
 }

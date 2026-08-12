@@ -13,8 +13,15 @@ use Kabuto\Expression;
 final class ComponentNodeCompiler
 {
     /** @param callable(Expression): string $compileExpression */
-    public function compile(ComponentNode $node, callable $compileExpression, string $slot, string $slots): string
-    {
+    public function compile(
+        ComponentNode $node,
+        callable $compileExpression,
+        string $slot,
+        string $slots,
+        CompilerScope $compilerScope,
+    ): string {
+        $scope = $compilerScope->scope;
+        $context = $compilerScope->context;
         $inputs = [...$node->props(), ...$node->callerAttributes()];
         usort(
             $inputs,
@@ -27,14 +34,18 @@ final class ComponentNodeCompiler
 
         foreach ($inputs as $input) {
             $statements[] = match (true) {
-                $input instanceof PropNode => $this->compileProp($input, $compileExpression),
+                $input instanceof PropNode => $this->compileProp($input, $compileExpression, $scope),
                 $input instanceof AttributeNode => $this->compileStaticAttribute($input),
-                default => $this->compileDynamicAttribute($input, $compileExpression),
+                default => $this->compileDynamicAttribute($input, $compileExpression, $scope),
             };
         }
 
         return (
-            '(static function () use ($scope, $renderer, $context): string {'
+            '(static function () use ('
+            . $scope
+            . ', $renderer, '
+            . $context
+            . '): string {'
             . ' $props = []; $attributeEntries = []; '
             . implode(' ', $statements)
             . ' return $renderer->component('
@@ -44,19 +55,23 @@ final class ComponentNodeCompiler
             . $slot
             . ', '
             . $slots
-            . ', $context)); })()'
+            . ', '
+            . $context
+            . ')); })()'
         );
     }
 
     /** @param callable(Expression): string $compileExpression */
-    private function compileProp(PropNode $prop, callable $compileExpression): string
+    private function compileProp(PropNode $prop, callable $compileExpression, string $scope): string
     {
         return (
             '$props['
             . PhpSource::string($prop->name())
             . '] = $renderer->evaluate('
             . $compileExpression($prop->expressionData())
-            . ', $scope);'
+            . ', '
+            . $scope
+            . ');'
         );
     }
 
@@ -74,14 +89,19 @@ final class ComponentNodeCompiler
     }
 
     /** @param callable(Expression): string $compileExpression */
-    private function compileDynamicAttribute(DynamicAttributeNode $attribute, callable $compileExpression): string
-    {
+    private function compileDynamicAttribute(
+        DynamicAttributeNode $attribute,
+        callable $compileExpression,
+        string $scope,
+    ): string {
         return (
             '$attributeEntries[] = new \\Kabuto\\AttributeEntry('
             . PhpSource::string($attribute->name())
             . ', $renderer->evaluate('
             . $compileExpression($attribute->expression())
-            . ', $scope), \\Kabuto\\AttributeProvenance::Dynamic, '
+            . ', '
+            . $scope
+            . '), \\Kabuto\\AttributeProvenance::Dynamic, '
             . PhpSource::location($attribute->expression()->location())
             . ');'
         );

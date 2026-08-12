@@ -137,11 +137,15 @@ final class SourceCursor
     /**
      * Reads literal text up to the next tag boundary.
      */
-    public function readTextUntilTag(): string
+    public function readTextUntilTag(?int $boundaryOffset = null): string
     {
         $start = $this->offset;
 
-        while (!$this->isEnd() && $this->peek() !== '<') {
+        while (
+            !$this->isEnd()
+            && $this->peek() !== '<'
+            && ($boundaryOffset === null || $this->offset < $boundaryOffset)
+        ) {
             $this->offset++;
         }
 
