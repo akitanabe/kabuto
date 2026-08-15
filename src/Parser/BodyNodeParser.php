@@ -63,6 +63,15 @@ final readonly class BodyNodeParser
         return $this->parseRegularTag($tag);
     }
 
+    public function parseConditionalComponentTag(OpenTag $tag): Node
+    {
+        if ($tag->name === $this->componentPrefix->slotTagName() && !$tag->selfClosing) {
+            throw ParseException::at('Conditional named slot declarations are not supported', $tag->startOffset);
+        }
+
+        return $this->parseTopLevelTag($tag);
+    }
+
     /**
      * Parses an opening tag as an HTML element or component.
      */

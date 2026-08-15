@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace Kabuto\Parser;
 
-use Closure;
 use Kabuto\Ast\Node;
-use Kabuto\Ast\TextNode;
 
 final class TemplateParser
 {
-    private TagParser $tagParser;
+    private TemplateLiteralParser $literalParser;
 
-    private BodyNodeParser $bodyNodeParser;
+    private ControlDirectiveParser $directiveParser;
 
-    private HtmlLiteralReader $htmlLiteralReader;
+    private ControlBlockParser $controlBlockParser;
 
-    private TemplateLiteralParser $templateLiteralParser;
+    private TemplateStructuralParser $structuralParser;
 
     /**
      * Stores parser collaborators for a single source cursor.
@@ -25,10 +23,18 @@ final class TemplateParser
         private readonly SourceCursor $cursor,
         ComponentPrefix $componentPrefix,
     ) {
-        $this->htmlLiteralReader = new HtmlLiteralReader($cursor);
-        $this->tagParser = new TagParser($cursor);
-        $this->bodyNodeParser = new BodyNodeParser($cursor, $this, $componentPrefix, $this->htmlLiteralReader);
-        $this->templateLiteralParser = new TemplateLiteralParser($cursor, $this->htmlLiteralReader);
+        $htmlLiteralReader = new HtmlLiteralReader($cursor);
+        $this->directiveParser = new ControlDirectiveParser($cursor);
+        $this->literalParser = new TemplateLiteralParser($cursor, $htmlLiteralReader, $this->directiveParser);
+        $bodyNodeParser = new BodyNodeParser($cursor, $this, $componentPrefix, $htmlLiteralReader);
+        $this->controlBlockParser = new ControlBlockParser($this->directiveParser);
+        $this->structuralParser = new TemplateStructuralParser(
+            $cursor,
+            $this->literalParser,
+            $htmlLiteralReader,
+            new TagParser($cursor),
+            $bodyNodeParser,
+        );
     }
 
     /**
@@ -38,15 +44,7 @@ final class TemplateParser
      */
     public function parse(): array
     {
-        $nodes = [];
-
-        while ($this->templateLiteralParser->hasInput()) {
-            if ($this->templateLiteralParser->isAtClosingTag()) {
-                throw ParseException::at('Unexpected closing tag', $this->cursor->offset());
-            }
-
-            $nodes[] = $this->parseTopLevelNode();
-        }
+        [$nodes] = $this->parseSequence(ParseBoundary::topLevel());
 
         return $nodes;
     }
@@ -58,95 +56,87 @@ final class TemplateParser
      */
     public function parseChildren(string $closingTag): array
     {
-        $nodes = [];
+        [$nodes] = $this->parseSequence(new ParseBoundary($closingTag, TemplateParseContext::Body));
 
-        while ($this->templateLiteralParser->hasInput()) {
-            if ($this->templateLiteralParser->isAtClosingTag()) {
-                $this->parseClosingTag($closingTag);
-
-                return $nodes;
-            }
-
-            $nodes[] = $this->parseNodeWithoutDoctype($this->bodyNodeParser->parseTopLevelTag(...));
-        }
-
-        throw ParseException::at('Missing closing tag ' . $closingTag, $this->cursor->offset());
+        return $nodes;
     }
 
     /**
-     * Parses component children where named slots are accepted.
+     * Parses component children where direct named slots are accepted.
      *
      * @return list<Node>
      */
     public function parseComponentChildren(string $closingTag): array
     {
+        [$nodes] = $this->parseSequence(new ParseBoundary($closingTag, TemplateParseContext::ComponentChildren));
+
+        return $nodes;
+    }
+
+    /**
+     * @param list<string> $stopTokens
+     * @return array{list<Node>, ?string}
+     */
+    private function parseSequence(ParseBoundary $boundary, array $stopTokens = []): array
+    {
         $nodes = [];
 
-        while ($this->templateLiteralParser->hasInput()) {
-            if ($this->templateLiteralParser->isAtClosingTag()) {
-                $this->parseClosingTag($closingTag);
+        while ($this->literalParser->hasInput()) {
+            if ($this->literalParser->isAtClosingTag()) {
+                if ($stopTokens !== []) {
+                    throw ParseException::at(
+                        'Expected @'
+                        . $this->closingToken($stopTokens)
+                        . ' before closing tag '
+                        . ($boundary->closingTag ?? 'at top level'),
+                        $this->cursor->offset(),
+                    );
+                }
 
-                return $nodes;
+                if ($boundary->closingTag === null) {
+                    throw ParseException::at('Unexpected closing tag', $this->cursor->offset());
+                }
+
+                $this->structuralParser->parseClosingTag($boundary->closingTag);
+
+                return [$nodes, null];
             }
 
-            $nodes[] = $this->parseNodeWithoutDoctype($this->bodyNodeParser->parseComponentTag(...));
+            $keyword = $this->literalParser->hasPendingNodes() ? null : $this->directiveParser->currentKeyword();
+
+            if ($keyword !== null) {
+                if (in_array($keyword, $stopTokens, strict: true)) {
+                    return [$nodes, $keyword];
+                }
+
+                if ($keyword === 'if' || $keyword === 'foreach') {
+                    $nodes[] = $this->controlBlockParser->parse($keyword, $boundary, $this->parseSequence(...));
+                    continue;
+                }
+
+                $message = $stopTokens === []
+                    ? 'Unexpected @' . $keyword
+                    : 'Expected @' . $this->closingToken($stopTokens) . ', got @' . $keyword;
+                throw ParseException::at($message, $this->cursor->offset());
+            }
+
+            $nodes[] = $this->structuralParser->parseNode($boundary);
         }
 
-        throw ParseException::at('Missing closing tag ' . $closingTag, $this->cursor->offset());
+        if ($stopTokens !== []) {
+            throw ParseException::at('Missing @' . $this->closingToken($stopTokens), $this->cursor->offset());
+        }
+
+        if ($boundary->closingTag !== null) {
+            throw ParseException::at('Missing closing tag ' . $boundary->closingTag, $this->cursor->offset());
+        }
+
+        return [$nodes, null];
     }
 
-    /**
-     * Parses one top-level node where an HTML doctype is accepted.
-     */
-    private function parseTopLevelNode(): Node
+    /** @param list<string> $stopTokens */
+    private function closingToken(array $stopTokens): string
     {
-        $literalNode = $this->templateLiteralParser->parse();
-        if ($literalNode !== null) {
-            return $literalNode;
-        }
-
-        if ($this->cursor->startsWith('<!')) {
-            return new TextNode($this->htmlLiteralReader->readDoctype());
-        }
-
-        $tag = $this->tagParser->readOpenTag();
-
-        return $this->bodyNodeParser->parseTopLevelTag($tag);
-    }
-
-    /**
-     * Parses a child node while rejecting nested doctype declarations.
-     *
-     * @param Closure(OpenTag): Node $parseTag
-     */
-    private function parseNodeWithoutDoctype(Closure $parseTag): Node
-    {
-        $literalNode = $this->templateLiteralParser->parse();
-        if ($literalNode !== null) {
-            return $literalNode;
-        }
-
-        if ($this->cursor->startsWith('<!')) {
-            throw ParseException::at('DOCTYPE is only allowed at top level', $this->cursor->offset());
-        }
-
-        $tag = $this->tagParser->readOpenTag();
-
-        return $parseTag($tag);
-    }
-
-    /**
-     * Parses the closing tag matching the current element or component.
-     */
-    private function parseClosingTag(string $expected): void
-    {
-        $this->cursor->expect('</');
-        $actual = $this->cursor->readName();
-        $this->cursor->skipWhitespace();
-        $this->cursor->expect('>');
-
-        if ($actual !== $expected) {
-            throw ParseException::at('Expected closing tag ' . $expected . ', got ' . $actual, $this->cursor->offset());
-        }
+        return $stopTokens[count($stopTokens) - 1];
     }
 }

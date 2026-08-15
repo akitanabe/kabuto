@@ -18,6 +18,7 @@ final class TemplateLiteralParser
     public function __construct(
         private SourceCursor $cursor,
         private HtmlLiteralReader $htmlLiteralReader,
+        private ControlDirectiveParser $controlDirectiveParser,
         private TextInterpolationParser $interpolationParser = new TextInterpolationParser(),
     ) {}
 
@@ -30,7 +31,7 @@ final class TemplateLiteralParser
             return array_shift($this->pendingNodes);
         }
 
-        if ($this->cursor->peek() !== '<') {
+        if ($this->cursor->peek() !== '<' && $this->controlDirectiveParser->currentKeyword() === null) {
             return $this->parseText();
         }
 
@@ -56,23 +57,16 @@ final class TemplateLiteralParser
         return !$this->hasPendingNodes() && $this->cursor->startsWith('</');
     }
 
-    /**
-     * Parses regular text while rejecting unsupported directives outside literal nodes.
-     */
     /** @return list<Node> */
     public function parseTextNodes(string $text, int $startOffset): array
     {
-        if (preg_match('/@(if|foreach|endif|endforeach)\b/', $text, $matches, flags: PREG_OFFSET_CAPTURE) === 1) {
-            throw ParseException::at('Directives are not supported', $startOffset + $matches[0][1]);
-        }
-
         return $this->interpolationParser->parse($text, $startOffset, $this->cursor->source());
     }
 
     private function parseText(): Node
     {
         $startOffset = $this->cursor->offset();
-        $text = $this->cursor->readTextUntilTag();
+        $text = $this->cursor->readTextUntilTag($this->controlDirectiveParser->nextOffsetBeforeTag());
         $nodes = $this->parseTextNodes($text, $startOffset);
         $node = array_shift($nodes);
         $this->pendingNodes = $nodes;

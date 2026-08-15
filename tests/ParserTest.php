@@ -103,15 +103,13 @@ final class ParserTest extends TestCase
         self::assertSame('store:provide', $nodes[2]->name());
     }
 
-    /**
-     * Confirms that unsupported directive syntax fails explicitly.
-     */
     #[Test]
-    public function parserRejectsBladeStyleDirectives(): void
+    public function parserRejectsAnUnclosedControlDirective(): void
     {
         $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Missing @endif');
 
-        new Parser()->parse('@if ($ok)<p>Ok</p>@endif');
+        new Parser()->parse('@if ($ok)<p>Ok</p>');
     }
 
     /**

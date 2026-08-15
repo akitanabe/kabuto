@@ -6,6 +6,8 @@ namespace Kabuto\Compiler;
 
 use Kabuto\Ast\ComponentNode;
 use Kabuto\Ast\ElementNode;
+use Kabuto\Ast\ForeachNode;
+use Kabuto\Ast\IfNode;
 use Kabuto\Ast\InterpolationNode;
 use Kabuto\Ast\Node;
 use Kabuto\Ast\SlotOutletNode;
@@ -16,12 +18,10 @@ use Kabuto\RenderScope;
 
 final class NodeRenderer
 {
-    /**
-     * Stores specialized renderers for HTML nodes and component invocations.
-     */
     public function __construct(
         private HtmlNodeRenderer $htmlRenderer = new HtmlNodeRenderer(),
         private ComponentNodeRenderer $componentRenderer = new ComponentNodeRenderer(),
+        private ControlNodeRenderer $controlRenderer = new ControlNodeRenderer(),
     ) {}
 
     /**
@@ -72,6 +72,10 @@ final class NodeRenderer
 
         if ($node instanceof SlotOutletNode) {
             return $renderer->slotOutlet($node->name(), $context);
+        }
+
+        if ($node instanceof IfNode || $node instanceof ForeachNode) {
+            return $this->controlRenderer->render($node, $scope, $context, $renderer, $this);
         }
 
         throw CompileException::unsupportedNode($node);

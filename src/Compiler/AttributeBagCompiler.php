@@ -14,7 +14,7 @@ final class AttributeBagCompiler
      * @param list<AttributeNode|DynamicAttributeNode> $attributes
      * @param callable(Expression): string $compileExpression
      */
-    public function compile(array $attributes, callable $compileExpression): string
+    public function compile(array $attributes, callable $compileExpression, string $scope): string
     {
         $entries = [];
 
@@ -36,7 +36,9 @@ final class AttributeBagCompiler
                 . PhpSource::string($attribute->name())
                 . ', $renderer->evaluate('
                 . $compileExpression($attribute->expression())
-                . ', $scope), \\Kabuto\\AttributeProvenance::Dynamic, '
+                . ', '
+                . $scope
+                . '), \\Kabuto\\AttributeProvenance::Dynamic, '
                 . PhpSource::location($attribute->expression()->location())
                 . ')';
         }
